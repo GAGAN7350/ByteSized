@@ -88,7 +88,7 @@ def analyze_and_optimize_rtl(code: str, target: str = "ppa") -> Tuple[List[RTLIs
             case_has_default = False
             case_start_line = line_num
 
-        if in_case_block and "default:" in stripped:
+        if in_case_block and "default:" in stripped and not stripped.startswith("//"):
             case_has_default = True
 
         if in_case_block and "endcase" in stripped:

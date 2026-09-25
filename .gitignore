@@ -118,4 +118,5 @@ build/
 # DO NOT REMOVE ABOVE PATTERNS
 # Add project-specific patterns below
 # ============================================
-powershell.bat
+powershell.bat
+*.vsix

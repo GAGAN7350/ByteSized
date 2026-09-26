@@ -10,7 +10,6 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Enable CORS for VS Code / Bob Extension and Web interfaces
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

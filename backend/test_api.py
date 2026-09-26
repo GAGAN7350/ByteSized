@@ -3,41 +3,41 @@ import json
 
 BASE_URL = "http://127.0.0.1:8000"
 
-def test_suite():
-    print("=============================================================")
-    print("    TESTING BYTESIZED BACKEND FOR ALL 3 EXTENSIONS           ")
-    print("=============================================================")
-
-    # 1. Health
+def test_health():
+    print("[1] Testing Health Endpoint...")
     req = urllib.request.Request(f"{BASE_URL}/health")
-    with urllib.request.urlopen(req) as resp:
-        print("\n[1] Health Check:", json.loads(resp.read().decode())["status"])
+    with urllib.request.urlopen(req) as response:
+        data = json.loads(response.read().decode())
+        print("    Response:", data)
 
-    # 2. Dev 1: Multi-language Code Optimizer (Python test)
-    py_code = "def worker(task_id, task_list=[]):\n    task_list.append(task_id)\n    return task_list"
-    payload = json.dumps({"code": py_code, "language": "python"}).encode("utf-8")
-    req = urllib.request.Request(f"{BASE_URL}/api/optimize-code", data=payload, headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req) as resp:
-        data = json.loads(resp.read().decode())
-        print("\n[2] Dev 1 - Universal Code Optimizer (Python Test):")
+def test_latch_fix():
+    print("\n[2] Testing RTL Latch Fix against alu_with_latch.v...")
+    with open("../test_samples/alu_with_latch.v", "r") as f:
+        code = f.read()
+
+    payload = json.dumps({
+        "verilog_code": code,
+        "target": "ppa"
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{BASE_URL}/api/optimize-rtl",
+        data=payload,
+        headers={"Content-Type": "application/json"}
+    )
+
+    with urllib.request.urlopen(req) as response:
+        data = json.loads(response.read().decode())
+        print(f"    Status: {data['status']}")
         print(f"    Issues Detected: {len(data['issues'])}")
-        print(f"    Summary: {data['summary']}")
-
-    # 3. Dev 2: Microchip & PCB Designer
-    req = urllib.request.Request(f"{BASE_URL}/api/chip-pcb/components")
-    with urllib.request.urlopen(req) as resp:
-        data = json.loads(resp.read().decode())
-        print(f"\n[3] Dev 2 - PCB & Microchip Components Available: {len(data['components'])} IC blocks")
-
-    # 4. Dev 3: Git Architecture Diagram
-    req = urllib.request.Request(f"{BASE_URL}/api/git/topology")
-    with urllib.request.urlopen(req) as resp:
-        data = json.loads(resp.read().decode())
-        print(f"\n[4] Dev 3 - Git Topology Tracked Extensions: {len(data['tracked_extensions'])} modules")
-
-    print("\n=============================================================")
-    print("    ALL 3 EXTENSION BACKEND SERVICES ARE OPERATIONAL!        ")
-    print("=============================================================")
+        for issue in data['issues']:
+            print(f"      - Line {issue['line']}: [{issue['rule_id']}] {issue['message']}")
+        print(f"    Metrics: {data['metrics']}")
+        print("\n[3] Auto-Rewritten Optimized Code Preview:")
+        print("--------------------------------------------------")
+        print(data['optimized_code'])
+        print("--------------------------------------------------")
 
 if __name__ == "__main__":
-    test_suite()
+    test_health()
+    test_latch_fix()

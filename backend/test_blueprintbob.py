@@ -28,6 +28,10 @@ class TestBlueprintBobBackend(unittest.TestCase):
     def setUpClass(cls):
         cls.client = TestClient(app)
 
+    def setUp(self):
+        from backend.routers.blueprintbob.generator import clear_diagram_cache
+        clear_diagram_cache()
+
     def test_health_endpoint(self):
         """Test the /api/blueprintbob/health endpoint."""
         resp = self.client.get("/api/blueprintbob/health")
@@ -401,6 +405,8 @@ class TestBlueprintBobBackend(unittest.TestCase):
                 {"name": "models/robotics-v1", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/search-grounding", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/whisper-base", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/gemini-omni-flash-preview", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/gemini-omni-1.1-flash", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/gemini-1.5-pro", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/gemini-1.5-flash", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/gemini-2.0-flash", "supportedGenerationMethods": ["generateContent"]},
@@ -417,7 +423,7 @@ class TestBlueprintBobBackend(unittest.TestCase):
         with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
             models, err = _get_available_gemini_models("test-valid-key")
             self.assertIsNone(err)
-            # Blacklisted non-text models should be excluded
+            # Blacklisted non-text and omni/preview models should be excluded
             self.assertNotIn("text-embedding-004", models)
             self.assertNotIn("gemini-3.8-flash-tts", models)
             self.assertNotIn("audio-preview-001", models)
@@ -426,19 +432,17 @@ class TestBlueprintBobBackend(unittest.TestCase):
             self.assertNotIn("robotics-v1", models)
             self.assertNotIn("search-grounding", models)
             self.assertNotIn("whisper-base", models)
+            self.assertNotIn("gemini-omni-flash-preview", models)
+            self.assertNotIn("gemini-omni-1.1-flash", models)
 
-            # Check prioritization: pure text priority models (gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro)
-            # then other flash, other pro, other
-            expected_prefix = [
-                "gemini-2.0-flash",
+            # Check prioritization: strictly gemini-1.5-flash, then gemini-2.0-flash,
+            # and capped at at most 2 candidate models
+            expected_models = [
                 "gemini-1.5-flash",
-                "gemini-1.5-pro",
-                "gemini-2.5-flash",
-                "gemini-2.0-flash-lite",
-                "gemini-2.5-pro",
-                "custom-model",
+                "gemini-2.0-flash",
             ]
-            self.assertEqual(models, expected_prefix)
+            self.assertEqual(models, expected_models)
+            self.assertEqual(len(models), 2)
             self.assertEqual(mock_urlopen.call_count, 1)
 
             # Test TTL caching: second call within TTL should return cached list without network call
@@ -478,7 +482,7 @@ class TestBlueprintBobBackend(unittest.TestCase):
         mock_success_resp.__enter__.return_value = mock_success_resp
 
         with patch("backend.routers.blueprintbob.generator._get_available_gemini_models",
-                   return_value=(["gemini-2.0-flash"], None)):
+                   return_value=(["gemini-1.5-flash"], None)):
             with patch("urllib.request.urlopen", side_effect=[err_503, mock_success_resp]) as mock_urlopen:
                 with patch("time.sleep") as mock_sleep:
                     graph, exp, err = _call_gemini("fake-key", "Test prompt")
@@ -488,15 +492,15 @@ class TestBlueprintBobBackend(unittest.TestCase):
                     self.assertEqual(mock_urlopen.call_count, 2)
                     mock_sleep.assert_called_once_with(1.5)
 
-    def test_call_gemini_429_retries_once_then_succeeds(self):
-        """Test _call_gemini retries once after 1.5s delay when receiving 429 Rate Limit."""
+    def test_call_gemini_429_advances_immediately_without_sleep(self):
+        """Test _call_gemini advances immediately to next candidate model without sleeping on 429."""
         import urllib.error
         from io import BytesIO
         from unittest.mock import MagicMock, patch
         from backend.routers.blueprintbob.generator import _call_gemini
 
         valid_graph_json = json.dumps({
-            "explanation": "Rate limit recovered",
+            "explanation": "Rate limit recovered on fallback model",
             "graph": {
                 "groups": [],
                 "nodes": [{"id": "n1", "label": "Node 1", "type": "backend", "shape": "box"}],
@@ -508,7 +512,7 @@ class TestBlueprintBobBackend(unittest.TestCase):
         }
 
         err_429_body = json.dumps({
-            "error": {"message": "Resource has been exhausted (e.g. check quota)."}
+            "error": {"message": "Resource has been exhausted (e.g. check quota limit: 0)."}
         }).encode("utf-8")
         err_429 = urllib.error.HTTPError(
             url="http://fake", code=429, msg="Too Many Requests", hdrs={}, fp=BytesIO(err_429_body)
@@ -519,24 +523,25 @@ class TestBlueprintBobBackend(unittest.TestCase):
         mock_success_resp.__enter__.return_value = mock_success_resp
 
         with patch("backend.routers.blueprintbob.generator._get_available_gemini_models",
-                   return_value=(["gemini-2.0-flash"], None)):
+                   return_value=(["gemini-1.5-flash", "gemini-2.0-flash"], None)):
             with patch("urllib.request.urlopen", side_effect=[err_429, mock_success_resp]) as mock_urlopen:
                 with patch("time.sleep") as mock_sleep:
                     graph, exp, err = _call_gemini("fake-key", "Test prompt")
                     self.assertIsNone(err)
                     self.assertIsNotNone(graph)
-                    self.assertEqual(exp, "Rate limit recovered")
+                    self.assertEqual(exp, "Rate limit recovered on fallback model")
                     self.assertEqual(mock_urlopen.call_count, 2)
-                    mock_sleep.assert_called_once_with(1.5)
+                    # Quota 429 must NOT sleep!
+                    mock_sleep.assert_not_called()
 
-    def test_call_gemini_timeout_retries_once_then_succeeds(self):
-        """Test _call_gemini retries once after 1.5s delay when request times out."""
+    def test_call_gemini_timeout_advances_immediately_without_sleep(self):
+        """Test _call_gemini advances immediately to next candidate model without sleeping on timeout."""
         import socket
         from unittest.mock import MagicMock, patch
         from backend.routers.blueprintbob.generator import _call_gemini
 
         valid_graph_json = json.dumps({
-            "explanation": "Timeout recovered",
+            "explanation": "Timeout recovered on next model",
             "graph": {
                 "groups": [],
                 "nodes": [{"id": "n1", "label": "Node 1", "type": "backend", "shape": "box"}],
@@ -552,15 +557,51 @@ class TestBlueprintBobBackend(unittest.TestCase):
         mock_success_resp.__enter__.return_value = mock_success_resp
 
         with patch("backend.routers.blueprintbob.generator._get_available_gemini_models",
-                   return_value=(["gemini-2.0-flash"], None)):
+                   return_value=(["gemini-1.5-flash", "gemini-2.0-flash"], None)):
             with patch("urllib.request.urlopen", side_effect=[socket.timeout("The read operation timed out"), mock_success_resp]) as mock_urlopen:
                 with patch("time.sleep") as mock_sleep:
                     graph, exp, err = _call_gemini("fake-key", "Test prompt")
                     self.assertIsNone(err)
                     self.assertIsNotNone(graph)
-                    self.assertEqual(exp, "Timeout recovered")
+                    self.assertEqual(exp, "Timeout recovered on next model")
                     self.assertEqual(mock_urlopen.call_count, 2)
-                    mock_sleep.assert_called_once_with(1.5)
+                    # Timeout must NOT sleep!
+                    mock_sleep.assert_not_called()
+
+    def test_in_memory_diagram_caching(self):
+        """Test in-memory caching returns instant cached response when files have not changed."""
+        import time
+        payload = {
+            "file_tree": ["src/app.py", "src/service.py"],
+            "engine_mode": "offline",
+            "granularity": "detailed"
+        }
+        # First call: cache miss
+        resp1 = self.client.post("/api/blueprintbob/generate", json=payload)
+        self.assertEqual(resp1.status_code, 200)
+        data1 = resp1.json()
+        self.assertFalse(data1["metrics"].get("cached", False))
+
+        # Second call: cache hit in <0.05s
+        t0 = time.time()
+        resp2 = self.client.post("/api/blueprintbob/generate", json=payload)
+        elapsed = time.time() - t0
+        self.assertEqual(resp2.status_code, 200)
+        data2 = resp2.json()
+        self.assertTrue(data2["metrics"].get("cached"))
+        self.assertLess(elapsed, 0.05)
+        self.assertEqual(data1["mermaid_code"], data2["mermaid_code"])
+
+        # Different payload: cache miss
+        payload_diff = {
+            "file_tree": ["src/app.py", "src/other.py"],
+            "engine_mode": "offline",
+            "granularity": "detailed"
+        }
+        resp3 = self.client.post("/api/blueprintbob/generate", json=payload_diff)
+        self.assertEqual(resp3.status_code, 200)
+        data3 = resp3.json()
+        self.assertFalse(data3["metrics"].get("cached", False))
 
     def test_call_gemini_json_mode_rejected_retries_without_response_mime_type(self):
         """Test _call_gemini immediately retries same model without responseMimeType when code 400 JSON mode is rejected."""

@@ -6,6 +6,7 @@ Provides the Universal Dual-Engine Architecture:
 2. Universal Offline AST & Docstring Engine: completely offline, universal static analysis
    extracting real docstrings, types, and cross-file import dependencies without hardcoded mocks.
 """
+import hashlib
 import json
 import logging
 import os
@@ -40,16 +41,16 @@ build_deterministic_graph = build_ast_graph
 def build_byok_prompt(request: BlueprintBobRequest) -> str:
     """Construct structured architectural synthesis prompt for LLM BYOK mode."""
     filtered = filter_files(request.file_tree)
-    sample_files = filtered[:80]
+    sample_files = filtered[:60]
 
     key_files_summary = []
-    for path, content in list(request.key_files.items())[:10]:
-        preview = content[:800].replace('\r\n', '\n')
+    for path, content in list(request.key_files.items())[:6]:
+        preview = content[:500].replace('\r\n', '\n')
         key_files_summary.append(f"--- File: {path} ---\n{preview}\n")
 
     key_files_text = "\n".join(key_files_summary)
-    readme_text = (request.readme or "")[:3000]
-    manifest_text = (request.manifest or "")[:1500]
+    readme_text = (request.readme or "")[:1500]
+    manifest_text = (request.manifest or "")[:1000]
 
     granularity = (request.granularity or "detailed").lower().strip()
     if granularity == "detailed":
@@ -62,17 +63,17 @@ def build_byok_prompt(request: BlueprintBobRequest) -> str:
 3. Assign precise file paths to all repository nodes in the `path` field.
 4. Connect fine-grained directed edges with descriptive verbs (e.g., 'mounts', 'imports', 'calls REST API', 'parses AST', 'validates schema').
 5. Assign appropriate node types: "backend", "frontend", "extension", "router", "database", "shared", "test", "config".
-6. Assign node shapes: "box", "hexagon" (for routers), "database" (for models/db), "document" (for configs/tests)."""
+6. Assign node shapes: "box", "hexagon" (for routers), "database" (for models/db), "document" (for configs/tests), "circle" (for external actors)."""
     else:
         req_text = """REQUIREMENTS FOR SYSTEM OVERVIEW MAP:
 1. Produce a clean, macro-level 10 to 14 node system overview representing high-level subsystem blocks and architecture layers.
 2. Aggregate individual files into macro architectural components (e.g. Core API Service, Frontend UI Layer, Shared Libraries, Database/Models, Test Harness).
 3. Assign appropriate node types: "backend", "frontend", "extension", "router", "database", "shared", "test", "config".
-4. Assign node shapes: "box", "hexagon" (for routers), "database" (for models/db), "document" (for configs/tests).
+4. Assign node shapes: "box", "hexagon" (for routers), "database" (for models/db), "document" (for configs/tests), "circle" (for external actors).
 5. Establish clean, high-level directed dependencies with clear relationship labels (e.g., 'mounts', 'imports', 'calls API')."""
 
-    return f"""You are BlueprintBob, an expert software architecture engine.
-Analyze the following workspace components and produce a clean, structured architecture graph and comprehensive markdown explanation.
+    return f"""You are BlueprintBob, an expert software architecture engine modeled after clean GitDiagram visual style.
+Analyze the following workspace components and produce a clean, structured architecture graph and concise explanation.
 
 FILES IN WORKSPACE (sample):
 {json.dumps(sample_files, indent=2)}
@@ -86,16 +87,23 @@ README:
 KEY SOURCE FILES EXCERPTS:
 {key_files_text or "None provided"}
 
+GITDIAGRAM CLEAN ARCHITECTURAL STYLE GUIDELINES:
+- Identify the primary external Actor / User (e.g. "Hardware engineer", "Developer", "Client") as a "circle" shape node (shape: "circle", type: "frontend").
+- Identify the Entrypoint UI / Editor (e.g. "VS Code / Bob editor", "Web App UI") invoking commands or initiating actions.
+- Group components into clean, logical subsystem subgraphs (e.g. "Extension Client", "Backend Core API", "Analysis Engine", "Data Storage").
+- For node labels, include clean file references in brackets where appropriate (e.g. `Extension commands [extension.ts]`, `WebSocket endpoint [main.py]`, `Compiler [compiler.py]`).
+- Limit output size: Keep node descriptions under 10 words and the markdown explanation under 120 words so the entire JSON streams in 2-3 seconds.
+
 {req_text}
 7. Return ONLY a valid JSON object matching this schema:
 {{
-  "explanation": "A rich 2-3 paragraph markdown architectural overview detailing layers, data flow, and subsystems.",
+  "explanation": "A concise 1-2 paragraph markdown architectural overview detailing layers, data flow, and subsystems (under 120 words).",
   "graph": {{
     "groups": [
       {{"id": "group_id", "label": "Group Label", "description": "Group Description"}}
     ],
     "nodes": [
-      {{"id": "node_id", "label": "Node Label", "type": "backend|frontend|...", "description": "Brief description", "path": "path/to/file", "shape": "box|hexagon|...", "group_id": "group_id"}}
+      {{"id": "node_id", "label": "Node Label [filename]", "type": "backend|frontend|...", "description": "Brief description", "path": "path/to/file", "shape": "box|circle|hexagon|database|...", "group_id": "group_id"}}
     ],
     "edges": [
       {{"source": "source_node_id", "target": "target_node_id", "label": "relationship", "style": "solid|dashed"}}
@@ -106,7 +114,10 @@ KEY SOURCE FILES EXCERPTS:
 
 
 BLACKLIST_MODEL_KEYWORDS = [
+    "omni",
+    "preview",
     "-tts",
+    "tts",
     "audio",
     "embedding",
     "imagen",
@@ -117,10 +128,11 @@ BLACKLIST_MODEL_KEYWORDS = [
 ]
 
 PREFERRED_TEXT_MODELS = [
-    "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-1.5-flash-latest",
+    "gemini-2.0-flash",
     "gemini-1.5-pro",
+    "gemini-1.5-flash-latest",
+    "gemini-2.0-flash-lite",
     "gemini-1.5-pro-latest",
     "gemini-pro",
 ]
@@ -174,7 +186,7 @@ def _get_available_gemini_models(api_key: str) -> Tuple[List[str], Optional[str]
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=45) as resp:
+        with urllib.request.urlopen(req, timeout=5) as resp:
             resp_data = json.loads(resp.read().decode('utf-8'))
             raw_models = resp_data.get("models", [])
             valid_models: List[str] = []
@@ -208,9 +220,10 @@ def _get_available_gemini_models(api_key: str) -> Tuple[List[str], Optional[str]
                 [m for m in valid_models if m not in b1 and m not in b2 and m not in b3]
             )
 
-            candidate_models = b1 + b2 + b3 + b4
+            # Strictly try at most 2 candidate models. Never cycle through 5 models.
+            candidate_models = (b1 + b2 + b3 + b4)[:2]
             _gemini_models_cache[api_key] = (candidate_models, now)
-            return candidate_models, None
+            return list(candidate_models), None
 
     except urllib.error.HTTPError as e:
         err_body = ""
@@ -259,16 +272,29 @@ def _call_gemini(api_key: str, prompt: str) -> Tuple[Optional[DiagramGraph], Opt
             return None, None, list_err
 
     if not candidate_models:
-        candidate_models = list(PREFERRED_TEXT_MODELS)
+        candidate_models = list(PREFERRED_TEXT_MODELS[:2])
+    else:
+        candidate_models = candidate_models[:2]
 
-    print(f"[BlueprintBob] Available Gemini models: {candidate_models[:5]}", flush=True)
+    print(f"[BlueprintBob] Available Gemini models: {candidate_models}", flush=True)
+
+    start_time = time.time()
+    MAX_TOTAL_TIME = 15.0
 
     last_error = list_err
     for model in candidate_models:
+        if (time.time() - start_time) >= MAX_TOTAL_TIME:
+            print(f"[BlueprintBob] Total Gemini attempt time exceeded {MAX_TOTAL_TIME}s. Falling back to offline engine.", flush=True)
+            break
+
         use_json_mime = True
-        retried_transient = False
+        retried_503 = False
 
         while True:
+            if (time.time() - start_time) >= MAX_TOTAL_TIME:
+                print(f"[BlueprintBob] Total Gemini attempt time exceeded {MAX_TOTAL_TIME}s. Falling back to offline engine.", flush=True)
+                break
+
             try:
                 print(f"[BlueprintBob] Calling Gemini API ({model}, json_mime={use_json_mime})...", flush=True)
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -287,7 +313,8 @@ def _call_gemini(api_key: str, prompt: str) -> Tuple[Optional[DiagramGraph], Opt
                     headers={"Content-Type": "application/json"}
                 )
 
-                with urllib.request.urlopen(req, timeout=45) as resp:
+                # Set timeout to 12 seconds per model request
+                with urllib.request.urlopen(req, timeout=12) as resp:
                     resp_data = json.loads(resp.read().decode('utf-8'))
                     candidates = resp_data.get('candidates', [])
                     if not candidates:
@@ -327,27 +354,34 @@ def _call_gemini(api_key: str, prompt: str) -> Tuple[Optional[DiagramGraph], Opt
                     use_json_mime = False
                     continue
 
-                # 2. Retry once on 503 high demand or 429 rate limit with 1.5s delay
-                if e.code in (429, 503) and not retried_transient:
-                    print(f"[BlueprintBob] Gemini model {model} returned {e.code}. Retrying once after 1.5s...", flush=True)
-                    time.sleep(1.5)
-                    retried_transient = True
-                    continue
-
-                # 3. Permanent auth / project errors: stop iterating through all models
+                # 2. Permanent auth / project errors: stop iterating through all models
                 if e.code in (401, 403) or (e.code == 400 and ("api key" in err_msg.lower() or "key not valid" in err_msg.lower())):
                     print(f"[BlueprintBob] Permanent Gemini API Error ({e.code}): {err_msg}", flush=True)
                     return None, None, last_error
 
-                # Otherwise (e.g. 404 Not Found, or second 503/429 failure), advance to next model
+                # 3. 429 Quota Exceeded: DO NOT sleep and retry! Quota limit: 0 will never succeed 1.5s later.
+                # Immediately move to next candidate model or offline fallback.
+                if e.code == 429:
+                    print(f"[BlueprintBob] Gemini model {model} returned 429 (quota exceeded). Moving immediately to next candidate or fallback...", flush=True)
+                    break
+
+                # 4. 503 High Demand: retry once if within time limit
+                if e.code == 503 and not retried_503 and (time.time() - start_time) < (MAX_TOTAL_TIME - 3.0):
+                    print(f"[BlueprintBob] Gemini model {model} returned 503. Retrying once after 1.5s...", flush=True)
+                    time.sleep(1.5)
+                    retried_503 = True
+                    continue
+
+                # Otherwise (e.g. 404 Not Found, or second 503 failure), advance to next model
                 break
 
             except Exception as e:
-                if _is_timeout_error(e) and not retried_transient:
-                    print(f"[BlueprintBob] Gemini model {model} timed out. Retrying once after 1.5s...", flush=True)
-                    time.sleep(1.5)
-                    retried_transient = True
-                    continue
+                # Timeouts: Set timeout to 12s per model request, DO NOT sleep and retry.
+                # Immediately move to next candidate model or offline fallback.
+                if _is_timeout_error(e):
+                    last_error = f"Gemini API Error: Request timed out for {model}"
+                    print(f"[BlueprintBob] Gemini model {model} timed out. Moving immediately to next candidate or fallback...", flush=True)
+                    break
 
                 last_error = f"Gemini API Error: {str(e)}"
                 logger.warning("Gemini model %s failed: %s", model, e)
@@ -380,7 +414,7 @@ def _call_openai(api_key: str, prompt: str) -> Tuple[Optional[DiagramGraph], Opt
             }
         )
 
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=12) as resp:
             resp_data = json.loads(resp.read().decode('utf-8'))
             raw_text = resp_data['choices'][0]['message']['content']
             parsed = _extract_json_payload(raw_text)
@@ -460,12 +494,54 @@ def call_llm_byok(
     return None, None, "offline_ast", None
 
 
+_diagram_cache: Dict[str, BlueprintBobResponse] = {}
+_MAX_DIAGRAM_CACHE_SIZE = 128
+
+
+def compute_diagram_cache_key(request: BlueprintBobRequest) -> str:
+    """
+    Compute deterministic cache key from (file_tree, readme_len, manifest_len, granularity, mode, provider).
+    """
+    tree_sorted = sorted(request.file_tree or [])
+    readme_len = len(request.readme or "")
+    manifest_len = len(request.manifest or "")
+    granularity = (request.granularity or "detailed").lower().strip()
+    mode = (request.engine_mode or "ai").lower().strip()
+    provider = (request.api_provider or "gemini").lower().strip()
+    custom_prompt = (request.custom_prompt or "").strip()
+
+    cache_data = {
+        "file_tree": tree_sorted,
+        "readme_len": readme_len,
+        "manifest_len": manifest_len,
+        "granularity": granularity,
+        "mode": mode,
+        "provider": provider,
+        "custom_prompt": custom_prompt,
+    }
+    raw_bytes = json.dumps(cache_data, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(raw_bytes).hexdigest()
+
+
+def clear_diagram_cache() -> None:
+    """Clear all entries in the in-memory diagram cache."""
+    _diagram_cache.clear()
+
+
 def generate_diagram(request: BlueprintBobRequest) -> BlueprintBobResponse:
     """
     Main entrypoint for generating architecture diagrams and explanations.
+    Uses in-memory caching to return instant results (0.01s) when inputs are identical.
     Uses BYOK mode if engine_mode is 'ai' and API keys are configured and functional;
     otherwise seamlessly uses the Universal Offline AST & Docstring Engine.
     """
+    cache_key = compute_diagram_cache_key(request)
+    if cache_key in _diagram_cache:
+        cached_resp = _diagram_cache[cache_key]
+        resp_copy = cached_resp.model_copy(deep=True)
+        resp_copy.metrics["cached"] = True
+        return resp_copy
+
     req_mode = (request.engine_mode or "ai").lower().strip()
 
     if req_mode == "offline":
@@ -511,11 +587,18 @@ def generate_diagram(request: BlueprintBobRequest) -> BlueprintBobResponse:
         metrics["api_error"] = api_error
         metrics["warning"] = f"AI API call failed: {api_error}. Fell back to Offline AST engine."
 
-    return BlueprintBobResponse(
+    resp = BlueprintBobResponse(
         status="success",
         mermaid_code=mermaid_code,
         explanation=explanation,
         graph=graph,
         metrics=metrics
     )
+
+    if len(_diagram_cache) >= _MAX_DIAGRAM_CACHE_SIZE:
+        oldest_key = next(iter(_diagram_cache))
+        _diagram_cache.pop(oldest_key, None)
+    _diagram_cache[cache_key] = resp
+
+    return resp
 

@@ -52,13 +52,13 @@ ByteSized/
 ├── extensions/
 │   ├── shared/            ← @bytesized/shared — local npm package, utilities for all extensions
 │   ├── siliconbob-rtl/    ← Extension 1: RTL hardware copilot (IBM Bob / VS Code)
-│   └── 2nd-ext/           ← Extension 2: placeholder scaffold for next team member
+│   └── blueprintbob/      ← Extension 2: Architecture & codebase visualizer
 ├── backend/
 │   ├── main.py            ← App factory — mounts all routers
 │   ├── shared/            ← Shared Pydantic models
 │   └── routers/
 │       ├── rtl/           ← SiliconBob RTL routes + engine
-│       └── second_ext/    ← 2nd-ext stub routes
+│       └── blueprintbob/  ← BlueprintBob architecture engine routes
 ├── test_samples/          ← Sample .v files for testing
 └── bob_sessions/          ← IBM Bob session screenshots (hackathon deliverable)
 ```
@@ -126,7 +126,7 @@ Each new extension follows the same four-step pattern:
 
 1. **Create the extension folder**
    ```bash
-   cp -r extensions/2nd-ext extensions/<your-ext-name>
+   cp -r extensions/blueprintbob extensions/<your-ext-name>
    ```
    Update `name`, `displayName`, and command prefixes in `extensions/<your-ext-name>/package.json`.
 
@@ -140,7 +140,7 @@ Each new extension follows the same four-step pattern:
 3. **Add your backend router**
    ```bash
    # Create backend/routers/<your_ext>/
-   # Copy backend/routers/second_ext/ as a template
+   # Copy backend/routers/blueprintbob/ as a template
    ```
    Then add one line in `backend/main.py`:
    ```python

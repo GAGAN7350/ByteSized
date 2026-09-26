@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch BlueprintBob (Extension Host)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/extensions/blueprintbob"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/extensions/blueprintbob/out/**/*.js"
+      ]
+    },
+    {
+      "name": "Launch SiliconBob RTL (Extension Host)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/extensions/siliconbob-rtl"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/extensions/siliconbob-rtl/out/**/*.js"
+      ]
+    }
+  ]
+}

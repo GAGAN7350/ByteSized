@@ -1,7 +1,7 @@
 {
-  "name": "2nd-ext",
-  "displayName": "2nd-ext: ByteSized Extension",
-  "description": "Placeholder scaffold for the second ByteSized IBM Bob / VS Code extension",
+  "name": "blueprintbob",
+  "displayName": "BlueprintBob: Architecture & Codebase Visualizer",
+  "description": "Interactive AI architecture diagrams and codebase maps for IBM Bob IDE / VS Code",
   "version": "0.1.0",
   "publisher": "bytesized-team",
   "engines": {
@@ -11,24 +11,24 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:2nd-ext.helloWorld"
+    "onCommand:blueprintbob.visualizeWorkspace"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "2nd-ext.helloWorld",
-        "title": "2nd-ext: Hello World",
-        "category": "2nd-ext"
+        "command": "blueprintbob.visualizeWorkspace",
+        "title": "BlueprintBob: Visualize Workspace Architecture",
+        "category": "BlueprintBob"
       }
     ],
     "configuration": {
-      "title": "2nd-ext",
+      "title": "BlueprintBob",
       "properties": {
-        "2nd-ext.backendUrl": {
+        "blueprintbob.backendUrl": {
           "type": "string",
           "default": "http://localhost:8000",
-          "description": "URL of the SiliconBob backend server"
+          "description": "URL of the BlueprintBob / ByteSized backend server"
         }
       }
     }

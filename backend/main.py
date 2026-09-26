@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routers.rtl.router import router as rtl_router
-from backend.routers.second_ext.router import router as second_ext_router
+from backend.routers.blueprintbob.router import router as blueprintbob_router
 
 app = FastAPI(
     title="SiliconBob Backend API",
@@ -23,4 +23,4 @@ app.add_middleware(
 # Add one include_router() call per new extension below.
 # =====================================================================
 app.include_router(rtl_router)
-app.include_router(second_ext_router)
+app.include_router(blueprintbob_router)

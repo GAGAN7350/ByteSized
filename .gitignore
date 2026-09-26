@@ -95,7 +95,8 @@ ENV/
 target/
 
 # IDE files
-.vscode/
+.vscode/*
+!.vscode/launch.json
 .idea/
 *.swp
 *.swo

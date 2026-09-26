@@ -204,16 +204,24 @@ export class DiagramPanel {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BlueprintBob Architecture Visualizer</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
         :root {
-            --bg-color: #0d1117;
-            --panel-bg: rgba(22, 27, 34, 0.85);
-            --pill-bg: rgba(30, 36, 46, 0.85);
-            --border-color: rgba(255, 255, 255, 0.12);
-            --accent-blue: #58a6ff;
-            --accent-purple: #bc8cff;
-            --accent-green: #3fb950;
-            --text-main: #e6edf3;
-            --text-muted: #8b949e;
+            --navy:      #1B2631;
+            --slate:     #4A4E69;
+            --blush:     #F9AFAF;
+            --off-white: #F6F6F6;
+            --sand:      #F8C291;
+
+            --bg-color:    var(--navy);
+            --panel-bg:    rgba(27, 38, 49, 0.82);
+            --border-color: rgba(246, 246, 246, 0.12);
+            --text-main:   var(--off-white);
+            --text-muted:  rgba(246, 246, 246, 0.48);
+
+            --font-primary: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            --font-secondary: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            --font-quirky: Consolas, 'JetBrains Mono', 'Courier New', monospace;
         }
 
         * {
@@ -225,12 +233,32 @@ export class DiagramPanel {
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: var(--font-primary), var(--font-secondary);
             overflow: hidden;
             width: 100vw;
             height: 100vh;
             display: flex;
             flex-direction: column;
+        }
+
+        button, input, select, textarea {
+            font-family: var(--font-primary), var(--font-secondary);
+        }
+
+        .brand-badge, .badge, .type-badge {
+            font-family: var(--font-primary), var(--font-secondary);
+        }
+
+        .floating-toolbar, .control-pill {
+            font-family: var(--font-primary), var(--font-secondary);
+        }
+
+        #info-drawer {
+            font-family: var(--font-primary), var(--font-secondary);
+        }
+
+        .modal-card, #explanation-modal {
+            font-family: var(--font-primary), var(--font-secondary);
         }
 
         /* Top Header Bar */
@@ -256,10 +284,11 @@ export class DiagramPanel {
             font-weight: 700;
             letter-spacing: 0.5px;
             padding: 4px 10px;
-            border-radius: 6px;
-            background: linear-gradient(135deg, #1f6feb 0%, #8957e5 100%);
-            color: #fff;
+            border-radius: 3px;
+            background: var(--slate);
+            color: var(--blush);
             text-transform: uppercase;
+            border: 1px solid rgba(249, 175, 175, 0.25);
         }
 
         .header-title {
@@ -276,16 +305,16 @@ export class DiagramPanel {
         .badge {
             font-size: 11px;
             padding: 3px 8px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.06);
+            border-radius: 3px;
+            background: rgba(74, 78, 105, 0.4);
             border: 1px solid var(--border-color);
             color: var(--text-muted);
         }
 
         .badge.badge-warning {
-            background: rgba(210, 153, 34, 0.2);
-            border: 1px solid rgba(210, 153, 34, 0.45);
-            color: #e3b341;
+            background: rgba(248, 194, 145, 0.12);
+            border: 1px solid rgba(248, 194, 145, 0.4);
+            color: var(--sand);
             font-weight: 600;
         }
 
@@ -334,11 +363,11 @@ export class DiagramPanel {
             display: flex;
             align-items: center;
             gap: 6px;
-            padding: 6px 12px;
-            background: var(--pill-bg);
+            padding: 6px 10px;
+            background: var(--panel-bg);
             backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
-            border-radius: 30px;
+            border-radius: 4px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
         }
 
@@ -346,24 +375,24 @@ export class DiagramPanel {
             background: transparent;
             border: none;
             color: var(--text-main);
-            padding: 6px 12px;
-            border-radius: 20px;
+            padding: 5px 10px;
+            border-radius: 3px;
             font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 4px;
-            transition: all 0.15s ease;
+            transition: background 0.15s ease, color 0.15s ease;
         }
 
         .pill-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: #fff;
+            background: rgba(246, 246, 246, 0.1);
+            color: var(--off-white);
         }
 
         .pill-btn:active {
-            transform: scale(0.96);
+            background: rgba(249, 175, 175, 0.15);
         }
 
         .pill-divider {
@@ -454,20 +483,20 @@ export class DiagramPanel {
             align-self: flex-start;
             font-size: 11px;
             padding: 3px 8px;
-            border-radius: 6px;
-            background: rgba(88, 166, 255, 0.15);
-            color: var(--accent-blue);
-            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 3px;
+            background: rgba(249, 175, 175, 0.12);
+            color: var(--blush);
+            border: 1px solid rgba(249, 175, 175, 0.3);
             text-transform: uppercase;
             font-weight: 600;
         }
 
         .btn-action {
-            background: #238636;
-            color: #fff;
+            background: var(--blush);
+            color: var(--navy);
             border: none;
             padding: 10px 14px;
-            border-radius: 6px;
+            border-radius: 3px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
@@ -480,7 +509,7 @@ export class DiagramPanel {
         }
 
         .btn-action:hover {
-            background: #2ea043;
+            background: var(--sand);
         }
 
         /* Explanation Modal / Drawer */
@@ -578,7 +607,7 @@ export class DiagramPanel {
         .md-h3 {
             font-size: 14px;
             font-weight: 600;
-            color: var(--accent-blue);
+            color: var(--blush);
             margin: 14px 0 6px 0;
         }
 
@@ -589,7 +618,7 @@ export class DiagramPanel {
         .md-h4 {
             font-size: 13px;
             font-weight: 600;
-            color: var(--accent-purple);
+            color: var(--sand);
             margin: 12px 0 6px 0;
         }
 
@@ -620,7 +649,7 @@ export class DiagramPanel {
             content: "•";
             position: absolute;
             left: 2px;
-            color: var(--accent-blue);
+            color: var(--blush);
             font-weight: bold;
         }
 
@@ -636,22 +665,22 @@ export class DiagramPanel {
             content: "◦";
             position: absolute;
             left: 16px;
-            color: var(--accent-purple);
+            color: var(--sand);
             font-weight: bold;
         }
 
         .md-code {
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
             font-size: 11.5px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 4px;
+            background: rgba(74, 78, 105, 0.35);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
             padding: 1px 5px;
-            color: #79c0ff;
+            color: var(--sand);
         }
 
         .md-arrow {
-            color: var(--accent-green);
+            color: var(--sand);
             font-weight: 600;
             margin: 0 4px;
         }
@@ -668,82 +697,86 @@ export class DiagramPanel {
 
         .node:hover {
             opacity: 0.85;
-            filter: drop-shadow(0 0 8px rgba(88, 166, 255, 0.6));
+            filter: drop-shadow(0 0 6px rgba(249, 175, 175, 0.5));
         }
 
         /* Fallback Box */
         .fallback-box {
             padding: 24px;
-            background: rgba(22, 27, 34, 0.95);
+            background: rgba(27, 38, 49, 0.95);
             border: 1px solid var(--border-color);
-            border-radius: 10px;
+            border-radius: 4px;
             max-width: 700px;
             margin: 40px auto;
         }
 
-        /* Dual-Segment Mode Toggle Pill & Granularity Toggle Pill */
+        /* Dual-Segment Mode Toggle & Granularity Toggle */
         .mode-toggle-pill, .granularity-toggle-pill {
             display: inline-flex;
             align-items: center;
-            background: rgba(0, 0, 0, 0.45);
+            height: 34px;
+            box-sizing: border-box;
+            background: rgba(27, 38, 49, 0.6);
             border: 1px solid var(--border-color);
-            border-radius: 20px;
+            border-radius: 4px;
             padding: 2px;
             gap: 2px;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.2s ease;
         }
 
         .granularity-toggle-pill {
-            background: rgba(0, 0, 0, 0.35);
+            background: rgba(27, 38, 49, 0.5);
         }
 
         .toggle-btn {
             background: transparent;
             border: none;
             color: var(--text-muted);
-            padding: 5px 12px;
-            border-radius: 18px;
+            padding: 4px 14px;
+            height: 28px;
+            box-sizing: border-box;
+            border-radius: 3px;
             font-size: 11px;
             font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap !important;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
+            line-height: 1;
             gap: 4px;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
             user-select: none;
         }
 
         .toggle-btn:hover {
             color: var(--text-main);
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(246, 246, 246, 0.08);
         }
 
         .toggle-btn.active {
-            background: linear-gradient(135deg, #1f6feb 0%, #8957e5 100%);
-            color: #fff;
-            box-shadow: 0 0 12px rgba(88, 166, 255, 0.45);
+            background: var(--blush);
+            color: var(--navy);
         }
 
         .toggle-btn.failed {
-            color: #ff7b72;
+            color: var(--sand);
             opacity: 0.85;
-            border: 1px dashed rgba(248, 81, 73, 0.4);
+            border: 1px dashed rgba(248, 194, 145, 0.4);
         }
 
         .toggle-btn.failed:hover {
             opacity: 1;
-            background: rgba(248, 81, 73, 0.15);
-            color: #fff;
+            background: rgba(248, 194, 145, 0.12);
+            color: var(--off-white);
         }
 
         .key-indicator-dot {
-            width: 7px;
-            height: 7px;
-            background-color: #3fb950;
+            width: 6px;
+            height: 6px;
+            background-color: var(--blush);
             border-radius: 50%;
             display: inline-block;
-            box-shadow: 0 0 6px #3fb950;
             margin-left: 3px;
         }
 
@@ -753,9 +786,9 @@ export class DiagramPanel {
             width: 100%;
             flex-shrink: 0;
             z-index: 28;
-            background: rgba(45, 14, 17, 0.96);
+            background: rgba(27, 38, 49, 0.96);
             backdrop-filter: blur(16px);
-            border-bottom: 1px solid #f85149;
+            border-bottom: 1px solid var(--sand);
             padding: 10px 18px;
             display: flex;
             align-items: center;
@@ -780,31 +813,32 @@ export class DiagramPanel {
             display: flex;
             align-items: center;
             gap: 10px;
-            color: #ff7b72;
+            color: var(--sand);
             font-size: 12px;
             line-height: 1.4;
         }
 
         .ai-error-icon {
-            font-size: 16px;
+            font-size: 13px;
             flex-shrink: 0;
+            color: var(--sand);
         }
 
         .btn-banner-key {
-            background: rgba(248, 81, 73, 0.25);
-            border: 1px solid #f85149;
-            color: #fff;
+            background: rgba(248, 194, 145, 0.15);
+            border: 1px solid var(--sand);
+            color: var(--off-white);
             padding: 5px 12px;
-            border-radius: 6px;
+            border-radius: 3px;
             font-size: 11px;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
-            transition: all 0.15s ease;
+            transition: background 0.15s ease;
         }
 
         .btn-banner-key:hover {
-            background: #f85149;
+            background: rgba(248, 194, 145, 0.28);
         }
 
         .btn-banner-dismiss {
@@ -817,7 +851,7 @@ export class DiagramPanel {
         }
 
         .btn-banner-dismiss:hover {
-            color: #fff;
+            color: var(--off-white);
         }
 
         .modal-mode-banner {
@@ -825,18 +859,18 @@ export class DiagramPanel {
             align-items: center;
             justify-content: space-between;
             padding: 8px 12px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            background: rgba(74, 78, 105, 0.3);
             border: 1px solid var(--border-color);
             font-size: 12px;
         }
 
         .modal-error-box {
-            background: rgba(248, 81, 73, 0.15);
-            border: 1px solid rgba(248, 81, 73, 0.45);
-            border-radius: 6px;
+            background: rgba(248, 194, 145, 0.1);
+            border: 1px solid rgba(248, 194, 145, 0.4);
+            border-radius: 3px;
             padding: 10px 14px;
-            color: #ff7b72;
+            color: var(--sand);
             font-size: 12px;
             line-height: 1.45;
         }
@@ -851,7 +885,9 @@ export class DiagramPanel {
             background: rgba(0, 0, 0, 0.65);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
-            z-index: 100;
+            z-index: 2500 !important;
+            overflow-y: auto;
+            padding: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -862,13 +898,14 @@ export class DiagramPanel {
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
+            border-radius: 4px;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
             width: 520px;
             max-width: 90vw;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
             animation: modalFadeIn 0.18s ease-out;
         }
 
@@ -910,8 +947,8 @@ export class DiagramPanel {
         }
 
         .modal-close:hover {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.1);
+            color: var(--off-white);
+            background: rgba(246, 246, 246, 0.08);
         }
 
         .modal-body {
@@ -951,7 +988,7 @@ export class DiagramPanel {
 
         .provider-radio input {
             cursor: pointer;
-            accent-color: var(--accent-blue);
+            accent-color: var(--blush);
         }
 
         .input-password-wrapper {
@@ -963,9 +1000,9 @@ export class DiagramPanel {
         .form-input {
             width: 100%;
             padding: 10px 40px 10px 12px;
-            background: rgba(13, 17, 23, 0.85);
+            background: rgba(27, 38, 49, 0.9);
             border: 1px solid var(--border-color);
-            border-radius: 6px;
+            border-radius: 3px;
             color: var(--text-main);
             font-size: 13px;
             outline: none;
@@ -974,8 +1011,8 @@ export class DiagramPanel {
         }
 
         .form-input:focus {
-            border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+            border-color: var(--blush);
+            box-shadow: 0 0 0 3px rgba(249, 175, 175, 0.18);
         }
 
         .btn-toggle-vis {
@@ -1018,41 +1055,39 @@ export class DiagramPanel {
             gap: 10px;
             padding: 16px 24px 20px 24px;
             border-top: 1px solid var(--border-color);
-            background: rgba(13, 17, 23, 0.4);
+            background: rgba(27, 38, 49, 0.5);
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #1f6feb 0%, #8957e5 100%);
-            color: #fff;
+            background: var(--blush);
+            color: var(--navy);
             border: none;
             padding: 9px 16px;
-            border-radius: 6px;
+            border-radius: 3px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: background 0.15s ease;
         }
 
         .btn-primary:hover {
-            opacity: 0.92;
-            box-shadow: 0 0 12px rgba(88, 166, 255, 0.4);
+            background: var(--sand);
         }
 
         .btn-secondary {
             background: transparent;
-            color: #f85149;
-            border: 1px solid rgba(248, 81, 73, 0.35);
+            color: var(--sand);
+            border: 1px solid rgba(248, 194, 145, 0.4);
             padding: 8px 14px;
-            border-radius: 6px;
+            border-radius: 3px;
             font-size: 12px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: background 0.15s ease;
         }
 
         .btn-secondary:hover {
-            background: rgba(248, 81, 73, 0.15);
-            border-color: #f85149;
+            background: rgba(248, 194, 145, 0.12);
         }
 
         .btn-cancel {
@@ -1060,37 +1095,180 @@ export class DiagramPanel {
             color: var(--text-muted);
             border: 1px solid var(--border-color);
             padding: 8px 14px;
-            border-radius: 6px;
+            border-radius: 3px;
             font-size: 12px;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: background 0.15s ease, color 0.15s ease;
         }
 
         .btn-cancel:hover {
             color: var(--text-main);
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(246, 246, 246, 0.07);
+        }
+
+        /* Loading Overlay & Pure Geometric Spinner */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(27, 38, 49, 0.78);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s ease;
+        }
+
+        .loading-card {
+            background: rgba(27, 38, 49, 0.88);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 28px 36px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            max-width: 440px;
+            width: 90%;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .blueprint-spinner {
+            position: relative;
+            width: 52px;
+            height: 52px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(246, 246, 246, 0.08);
+            border-top-color: var(--blush);
+            border-right-color: var(--sand);
+            border-radius: 50%;
+            animation: blueprintSpin 1s cubic-bezier(0.6, 0.2, 0.4, 0.9) infinite;
+        }
+
+        .spinner-pulse {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: var(--blush);
+            transform: rotate(45deg);
+            animation: diamondPulse 1.6s ease-in-out infinite;
+            border-radius: 2px;
+        }
+
+        @keyframes blueprintSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes diamondPulse {
+            0%, 100% {
+                transform: rotate(45deg) scale(0.75);
+                opacity: 0.6;
+            }
+            50% {
+                transform: rotate(225deg) scale(1.1);
+                opacity: 1;
+                background: var(--sand);
+            }
+        }
+
+        .loading-quirky-message {
+            font-family: var(--font-quirky);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--blush);
+            margin-bottom: 6px;
+            min-height: 20px;
+            line-height: 1.4;
+            letter-spacing: 0.2px;
+            transition: opacity 0.15s ease;
+        }
+
+        .loading-subtext {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+        }
+
+        .loading-progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(246, 246, 246, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 45%;
+            position: absolute;
+            background: linear-gradient(90deg, var(--blush), var(--sand));
+            border-radius: 2px;
+            animation: progressShimmer 1.8s ease-in-out infinite;
+        }
+
+        @keyframes progressShimmer {
+            0% {
+                left: -45%;
+            }
+            50% {
+                left: 40%;
+                width: 60%;
+            }
+            100% {
+                left: 100%;
+                width: 45%;
+            }
         }
     </style>
 </head>
 <body>
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-card">
+            <div class="blueprint-spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-pulse"></div>
+            </div>
+            <div id="loading-message" class="loading-quirky-message">Initializing BlueprintBob architecture engine...</div>
+            <div class="loading-subtext">AST & AI Topology Synthesis</div>
+            <div class="loading-progress-bar"><div class="progress-bar-fill"></div></div>
+        </div>
+    </div>
+
     <div class="header-bar" id="header-bar">
         <div class="header-left">
             <span class="brand-badge">BlueprintBob</span>
             <span class="header-title">Architecture Topology & Component Map</span>
         </div>
-        <div class="metrics-badges" id="metrics-container">${isAiFallback ? `<span class="badge badge-warning">⚠️ Offline AST Fallback (AI Failed)</span>` : ''}</div>
+        <div class="metrics-badges" id="metrics-container">${isAiFallback ? `<span class="badge badge-warning">[!] Offline AST Fallback (AI Failed)</span>` : ''}</div>
     </div>
 
     ${metrics?.api_error ? `
-    <!-- Top AI Error Banner Docked Directly Beneath Header -->
+    <!-- AI Error Banner -->
     <div id="ai-error-banner" class="ai-error-banner">
         <div class="ai-error-content">
-            <span class="ai-error-icon">❌</span>
+            <span class="ai-error-icon">[!]</span>
             <span class="ai-error-text"><strong>AI Generation Failed:</strong> ${metrics.api_error.replace(/</g, '&lt;').replace(/>/g, '&gt;')}. Displaying Offline AST analysis.</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-            <button class="btn-banner-key" id="btn-banner-check-key">🔑 Check API Key</button>
-            <button class="btn-banner-dismiss" id="btn-banner-dismiss" title="Dismiss">✕</button>
+            <button class="btn-banner-key" id="btn-banner-check-key">Check API Key</button>
+            <button class="btn-banner-dismiss" id="btn-banner-dismiss" title="Dismiss">×</button>
         </div>
     </div>
     ` : ''}
@@ -1101,28 +1279,28 @@ export class DiagramPanel {
         </div>
     </div>
 
-    <!-- Floating Glassmorphic Control Pill / Floating Toolbar -->
+    <!-- Floating Toolbar -->
     <div class="control-pill floating-toolbar" id="floating-toolbar">
         <div class="mode-toggle-pill">
-            <button id="toggleOfflineBtn" class="toggle-btn ${(!isAiFallback && currentMode === 'ai') ? '' : 'active'}" title="Instant offline AST analysis (0 tokens)">⚡ Offline</button>
-            <button id="toggleAiBtn" class="toggle-btn ${(!isAiFallback && currentMode === 'ai') ? 'active' : ''} ${isAiFallback ? 'failed' : ''}" title="${isAiFallback ? 'AI Generation Failed - Click to configure key or retry' : 'Deep AI architectural reasoning'}">✨ AI Mode${isAiFallback ? ' (Failed)' : ''}</button>
+            <button id="toggleOfflineBtn" class="toggle-btn ${(!isAiFallback && currentMode === 'ai') ? '' : 'active'}" title="Instant offline AST analysis (0 tokens)">Offline</button>
+            <button id="toggleAiBtn" class="toggle-btn ${(!isAiFallback && currentMode === 'ai') ? 'active' : ''} ${isAiFallback ? 'failed' : ''}" title="${isAiFallback ? 'AI Generation Failed — click to configure key or retry' : 'Deep AI architectural reasoning'}">AI Mode${isAiFallback ? ' (Failed)' : ''}</button>
         </div>
         <div class="granularity-toggle-pill" title="Switch architectural granularity">
-            <button id="toggleOverviewBtn" class="toggle-btn ${granularity === 'overview' ? 'active' : ''}">🏢 Overview</button>
-            <button id="toggleDetailedBtn" class="toggle-btn ${granularity === 'detailed' ? 'active' : ''}">🔍 Deep Map</button>
+            <button id="toggleOverviewBtn" class="toggle-btn ${granularity === 'overview' ? 'active' : ''}">Overview</button>
+            <button id="toggleDetailedBtn" class="toggle-btn ${granularity === 'detailed' ? 'active' : ''}">Deep Map</button>
         </div>
         <button class="pill-btn" id="btn-api-key" title="AI Engine & API Key Configuration">
-            🔑 Key${keyInfo?.hasKey ? '<span class="key-indicator-dot"></span>' : ''}
+            Key${keyInfo?.hasKey ? '<span class="key-indicator-dot"></span>' : ''}
         </button>
         <div class="pill-divider"></div>
-        <button class="pill-btn" id="btn-zoom-in" title="Zoom In">＋ Zoom</button>
-        <button class="pill-btn" id="btn-zoom-out" title="Zoom Out">－ Zoom</button>
+        <button class="pill-btn" id="btn-zoom-in" title="Zoom In">+</button>
+        <button class="pill-btn" id="btn-zoom-out" title="Zoom Out">−</button>
         <div class="pill-divider"></div>
-        <button class="pill-btn" id="btn-fit" title="Fit Screen">⛶ Fit</button>
-        <button class="pill-btn" id="btn-reset" title="Reset View">↺ Reset</button>
+        <button class="pill-btn" id="btn-fit" title="Fit to screen">Fit</button>
+        <button class="pill-btn" id="btn-reset" title="Reset view">Reset</button>
         <div class="pill-divider"></div>
-        <button class="pill-btn" id="btn-explanation" title="Architecture Overview">ℹ Insights</button>
-        <button class="pill-btn" id="btn-copy" title="Copy Mermaid Code">📋 Copy Code</button>
+        <button class="pill-btn" id="btn-explanation" title="Architecture insights">Insights</button>
+        <button class="pill-btn" id="btn-copy" title="Copy Mermaid code">Copy</button>
     </div>
 
     <!-- Minimal, Beautiful Modal: AI Engine & API Key -->
@@ -1133,19 +1311,19 @@ export class DiagramPanel {
                     <h3 class="modal-title">AI Engine & API Key</h3>
                     <p class="modal-subtitle">Run fully offline or bring your Gemini / OpenAI key for deep AI synthesis</p>
                 </div>
-                <button class="modal-close" id="btn-close-key-modal" title="Close modal">✕</button>
+                <button class="modal-close" id="btn-close-key-modal" title="Close modal">×</button>
             </div>
             <div class="modal-body">
                 <div class="modal-mode-banner">
                     <span style="color:var(--text-muted);">Current Mode:</span>
-                    <strong style="color:${currentMode === 'ai' ? '#bc8cff' : '#58a6ff'};">
-                        ${currentMode === 'ai' ? '✨ AI Mode' : '⚡ Offline AST Mode'}
+                    <strong style="color:${currentMode === 'ai' ? 'var(--blush)' : 'var(--sand)'};">
+                        ${currentMode === 'ai' ? 'AI Mode' : 'Offline AST Mode'}
                     </strong>
                 </div>
 
                 ${metrics?.api_error ? `
                 <div class="modal-error-box">
-                    <strong>❌ Last AI Attempt Failed:</strong><br/>
+                    <strong>Last AI Attempt Failed:</strong><br/>
                     ${metrics.api_error.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
                 </div>
                 ` : ''}
@@ -1175,13 +1353,13 @@ export class DiagramPanel {
                             autocomplete="off"
                             spellcheck="false"
                         />
-                        <button type="button" id="btn-toggle-key-vis" class="btn-toggle-vis" title="Show/Hide API Key">👁️</button>
+                        <button type="button" id="btn-toggle-key-vis" class="btn-toggle-vis" title="Show/Hide API Key">[show]</button>
                     </div>
                     <div id="key-status-text" class="key-status-hint"></div>
                 </div>
 
                 <div class="modal-security-note">
-                    🔒 Stored securely in your IDE's SecretStorage. Switch between AI Mode and Offline Mode anytime via the toolbar toggle without having to clear your key.
+                    Stored securely in your IDE's SecretStorage. Switch between AI Mode and Offline Mode anytime via the toolbar toggle without having to clear your key.
                 </div>
             </div>
             <div class="modal-actions">
@@ -1196,8 +1374,8 @@ export class DiagramPanel {
     <!-- Explanation Modal / Drawer -->
     <div id="explanation-modal">
         <div class="explanation-header">
-            <h4 class="explanation-title">ℹ System Architecture Insights</h4>
-            <button id="btn-close-explanation" class="explanation-close" title="Close insights">✕</button>
+            <h4 class="explanation-title">System Architecture Insights</h4>
+            <button id="btn-close-explanation" class="explanation-close" title="Close insights">×</button>
         </div>
         <div id="explanation-text" class="explanation-body"></div>
     </div>
@@ -1206,7 +1384,7 @@ export class DiagramPanel {
     <div id="info-drawer">
         <div class="drawer-header">
             <span class="drawer-title" id="drawer-node-label">Component Details</span>
-            <button class="drawer-close" id="btn-close-drawer">✕</button>
+            <button class="drawer-close" id="btn-close-drawer">×</button>
         </div>
         <div class="drawer-content">
             <span class="type-badge" id="drawer-node-type">Module</span>
@@ -1227,7 +1405,7 @@ export class DiagramPanel {
             </div>
 
             <button class="btn-action" id="btn-open-file">
-                📂 Open in Editor
+                Open in Editor
             </button>
         </div>
     </div>
@@ -1242,6 +1420,65 @@ export class DiagramPanel {
         const metrics = ${metricsJson};
         const keyInfo = ${keyInfoJson};
         const currentGranularity = ${granularityJson};
+
+        // Loading Overlay System
+        const LOADING_MESSAGES = [
+            "Initializing BlueprintBob architecture engine...",
+            "Brewing fresh coffee for the AST parser...",
+            "Decompiling abstract syntax trees...",
+            "Consulting Gemini for high-level architectural reasoning...",
+            "Untangling spaghetti code into clean subsystems...",
+            "Resolving cross-module imports and dependency graphs...",
+            "Loading shapes, bezier curves, and subgraph boundaries...",
+            "Topological sorting in progress...",
+            "Polishing nodes & applying glassmorphic styling...",
+            "Almost ready! Assembling final architecture blueprint..."
+        ];
+
+        let loadingInterval = null;
+        let currentMessageIndex = 0;
+
+        function showLoading(initialText) {
+            const overlay = document.getElementById('loading-overlay');
+            const messageEl = document.getElementById('loading-message');
+            if (!overlay || !messageEl) return;
+
+            if (initialText) {
+                messageEl.textContent = initialText;
+            } else {
+                messageEl.textContent = LOADING_MESSAGES[0];
+            }
+
+            overlay.style.display = 'flex';
+
+            if (loadingInterval) {
+                clearInterval(loadingInterval);
+            }
+
+            currentMessageIndex = 1;
+            loadingInterval = setInterval(() => {
+                if (currentMessageIndex >= LOADING_MESSAGES.length) {
+                    currentMessageIndex = 0;
+                }
+                messageEl.style.opacity = '0';
+                setTimeout(() => {
+                    messageEl.textContent = LOADING_MESSAGES[currentMessageIndex];
+                    messageEl.style.opacity = '1';
+                    currentMessageIndex++;
+                }, 150);
+            }, 2200);
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loading-overlay');
+            if (loadingInterval) {
+                clearInterval(loadingInterval);
+                loadingInterval = null;
+            }
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
 
         // Setup API Key Modal Logic
         const apiKeyModal = document.getElementById('apiKeyModal');
@@ -1261,6 +1498,7 @@ export class DiagramPanel {
         if (toggleOfflineBtn) {
             toggleOfflineBtn.addEventListener('click', () => {
                 if (keyInfo.currentMode === 'offline') return;
+                showLoading("Switching to Offline AST Mode...");
                 vscode.postMessage({ command: 'switchEngineMode', mode: 'offline' });
             });
         }
@@ -1270,7 +1508,9 @@ export class DiagramPanel {
                 if (keyInfo.currentMode === 'ai' && !metrics.api_error) return;
                 if (!keyInfo.hasKey) {
                     openKeyModal();
+                    return;
                 }
+                showLoading("Consulting Gemini for high-level architectural reasoning...");
                 vscode.postMessage({ command: 'switchEngineMode', mode: 'ai' });
             });
         }
@@ -1282,6 +1522,7 @@ export class DiagramPanel {
         if (toggleOverviewBtn) {
             toggleOverviewBtn.addEventListener('click', () => {
                 if (currentGranularity === 'overview') return;
+                showLoading("Synthesizing high-level architectural overview...");
                 vscode.postMessage({ command: 'switchGranularity', granularity: 'overview' });
             });
         }
@@ -1289,6 +1530,7 @@ export class DiagramPanel {
         if (toggleDetailedBtn) {
             toggleDetailedBtn.addEventListener('click', () => {
                 if (currentGranularity === 'detailed') return;
+                showLoading("Assembling deep architectural component map...");
                 vscode.postMessage({ command: 'switchGranularity', granularity: 'detailed' });
             });
         }
@@ -1323,7 +1565,7 @@ export class DiagramPanel {
             }
 
             if (keyInfo.hasKey) {
-                keyStatusText.innerHTML = '<span style="color: var(--accent-green); font-weight: 500;">✓ Stored Key Active: <code>' + keyInfo.maskedKey + '</code></span>';
+                keyStatusText.innerHTML = '<span style="color: var(--blush); font-weight: 500;">[ok] Stored Key Active: <code>' + keyInfo.maskedKey + '</code></span>';
                 apiKeyInput.placeholder = 'Key configured (' + keyInfo.maskedKey + ') - enter new key to replace';
                 btnClearKey.style.display = 'inline-block';
             } else {
@@ -1337,7 +1579,7 @@ export class DiagramPanel {
             updateModalState();
             apiKeyInput.value = '';
             apiKeyInput.type = 'password';
-            btnToggleKeyVis.textContent = '👁️';
+            btnToggleKeyVis.textContent = '[show]';
             apiKeyModal.style.display = 'flex';
             apiKeyInput.focus();
         }
@@ -1365,10 +1607,10 @@ export class DiagramPanel {
         btnToggleKeyVis.addEventListener('click', () => {
             if (apiKeyInput.type === 'password') {
                 apiKeyInput.type = 'text';
-                btnToggleKeyVis.textContent = '🙈';
+                btnToggleKeyVis.textContent = '[hide]';
             } else {
                 apiKeyInput.type = 'password';
-                btnToggleKeyVis.textContent = '👁️';
+                btnToggleKeyVis.textContent = '[show]';
             }
         });
 
@@ -1388,6 +1630,7 @@ export class DiagramPanel {
             }
 
             closeKeyModal();
+            showLoading("Validating API key and synthesizing architecture...");
             vscode.postMessage({
                 command: 'saveApiKey',
                 apiKey: enteredKey,
@@ -1397,6 +1640,7 @@ export class DiagramPanel {
 
         btnClearKey.addEventListener('click', () => {
             closeKeyModal();
+            showLoading("Switching to Offline AST Mode...");
             vscode.postMessage({
                 command: 'clearApiKey'
             });
@@ -1405,7 +1649,7 @@ export class DiagramPanel {
         // Render metrics badges
         const metricsContainer = document.getElementById('metrics-container');
         if (${isAiFallback} && !metricsContainer.querySelector('.badge-warning')) {
-            metricsContainer.innerHTML += '<span class="badge badge-warning">⚠️ Offline AST Fallback (AI Failed)</span>';
+            metricsContainer.innerHTML += '<span class="badge badge-warning">[!] Offline AST Fallback (AI Failed)</span>';
         }
         if (metrics.nodes_count) {
             metricsContainer.innerHTML += \`<span class="badge">\${metrics.nodes_count} Nodes</span>\`;
@@ -1417,7 +1661,7 @@ export class DiagramPanel {
             metricsContainer.innerHTML += \`<span class="badge">\${metrics.scanned_files} Files Scanned</span>\`;
         }
         if (metrics.granularity) {
-            metricsContainer.innerHTML += \`<span class="badge">\${metrics.granularity === 'detailed' ? '🔍 Deep Map' : '🏢 Overview'}</span>\`;
+            metricsContainer.innerHTML += \`<span class="badge">\${metrics.granularity === 'detailed' ? 'Deep Map' : 'Overview'}</span>\`;
         }
 
         function escapeHtml(str) {
@@ -1444,9 +1688,9 @@ export class DiagramPanel {
                         s = boldParts.join('');
                     }
                     // Arrows
-                    s = s.replace(/➔/g, '<span class="md-arrow">➔</span>');
-                    s = s.replace(/->/g, '<span class="md-arrow">➔</span>');
-                    s = s.replace(/-&gt;/g, '<span class="md-arrow">➔</span>');
+                    s = s.replace(/\u2794/g, '<span class="md-arrow">&rarr;</span>');
+                    s = s.replace(/->/g, '<span class="md-arrow">&rarr;</span>');
+                    s = s.replace(/-&gt;/g, '<span class="md-arrow">&rarr;</span>');
                     codeParts[p] = s;
                 }
             }
@@ -1774,6 +2018,7 @@ export class DiagramPanel {
 
         // Render Mermaid
         function renderDiagram() {
+            showLoading();
             if (typeof mermaid !== 'undefined') {
                 try {
                     mermaid.initialize({
@@ -1795,6 +2040,8 @@ export class DiagramPanel {
                         panX = clamped.x;
                         panY = clamped.y;
                         updateTransform();
+
+                        hideLoading();
 
                         // Attach delegated click listener on rendered SVG nodes as extra bridge
                         target.addEventListener('click', (e) => {
@@ -1823,12 +2070,13 @@ export class DiagramPanel {
         }
 
         function renderFallback() {
+            hideLoading();
             const target = document.getElementById('mermaid-target');
             let cardsHtml = '';
             for (const n of graphNodes) {
                 cardsHtml += \`
                     <div style="background:rgba(255,255,255,0.04); border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:8px; cursor:pointer;" onclick="showNodeDetails('\${n.id}')">
-                        <div style="font-weight:600; color:var(--accent-blue);">\${n.label}</div>
+                        <div style="font-weight:600; color:var(--blush);">\${n.label}</div>
                         <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">\${n.path || n.id}</div>
                     </div>
                 \`;
@@ -1836,7 +2084,7 @@ export class DiagramPanel {
 
             target.innerHTML = \`
                 <div class="fallback-box">
-                    <h3 style="margin-bottom:8px; color:var(--accent-blue);">BlueprintBob Architecture Map</h3>
+                    <h3 style="margin-bottom:8px; color:var(--blush);">BlueprintBob Architecture Map</h3>
                     <p style="color:var(--text-muted); font-size:12px; margin-bottom:16px;">
                         Interactive topology rendered via component schema. Click any component below to view details or open in editor:
                     </p>

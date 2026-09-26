@@ -6,7 +6,8 @@
       "type": "extensionHost",
       "request": "launch",
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/extensions/blueprintbob"
+        "--extensionDevelopmentPath=${workspaceFolder}/extensions/blueprintbob",
+        "${workspaceFolder}"
       ],
       "outFiles": [
         "${workspaceFolder}/extensions/blueprintbob/out/**/*.js"

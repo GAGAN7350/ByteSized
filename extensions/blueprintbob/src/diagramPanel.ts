@@ -187,8 +187,9 @@ export class DiagramPanel {
         const nodesJson = JSON.stringify(graph?.nodes || []);
         const metricsJson = JSON.stringify(metrics || {});
         const keyInfoJson = JSON.stringify(keyInfo || { hasKey: false, provider: 'gemini', maskedKey: '', currentMode: 'offline' });
-        const safeMermaid = mermaidCode.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-        const safeExplanation = explanation.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+        const mermaidJson = JSON.stringify(mermaidCode || '');
+        const explanationJson = JSON.stringify(explanation || '');
+        const granularityJson = JSON.stringify(granularity || 'detailed');
 
         const currentMode = keyInfo?.currentMode || (metrics?.engine_mode?.startsWith('byok') ? 'ai' : (keyInfo?.hasKey ? 'ai' : 'offline'));
         const isAiFallback = Boolean(
@@ -482,26 +483,177 @@ export class DiagramPanel {
             background: #2ea043;
         }
 
-        /* Explanation Drawer */
+        /* Explanation Modal / Drawer */
         #explanation-modal {
             position: absolute;
             top: 60px;
             left: 20px;
-            max-width: 440px;
+            width: 480px;
+            max-width: calc(100vw - 40px);
+            max-height: calc(100vh - 140px);
             background: var(--panel-bg);
             backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            padding: 18px;
             display: none;
+            flex-direction: column;
+            overflow: hidden;
             z-index: 25;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             font-size: 13px;
             line-height: 1.5;
         }
 
         #explanation-modal.open {
-            display: block;
+            display: flex;
+        }
+
+        .explanation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .explanation-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .explanation-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+
+        .explanation-close:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .explanation-body,
+        #explanation-text {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 18px 24px 18px;
+            color: var(--text-main);
+        }
+
+        .explanation-body::-webkit-scrollbar,
+        #explanation-text::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .explanation-body::-webkit-scrollbar-track,
+        #explanation-text::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .explanation-body::-webkit-scrollbar-thumb,
+        #explanation-text::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 4px;
+        }
+
+        .explanation-body::-webkit-scrollbar-thumb:hover,
+        #explanation-text::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.32);
+        }
+
+        /* Markdown Formatted Typography & Elements */
+        .md-h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin: 14px 0 6px 0;
+        }
+
+        .md-h3:first-child {
+            margin-top: 0;
+        }
+
+        .md-h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-purple);
+            margin: 12px 0 6px 0;
+        }
+
+        .md-p {
+            margin: 0 0 10px 0;
+            line-height: 1.55;
+            color: var(--text-main);
+        }
+
+        .md-list {
+            margin: 6px 0 12px 0;
+            padding-left: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .md-item {
+            position: relative;
+            padding-left: 14px;
+            font-size: 12.5px;
+            line-height: 1.5;
+            color: var(--text-main);
+        }
+
+        .md-item::before {
+            content: "•";
+            position: absolute;
+            left: 2px;
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        .md-subitem {
+            position: relative;
+            padding-left: 28px;
+            font-size: 12px;
+            line-height: 1.45;
+            color: var(--text-muted);
+        }
+
+        .md-subitem::before {
+            content: "◦";
+            position: absolute;
+            left: 16px;
+            color: var(--accent-purple);
+            font-weight: bold;
+        }
+
+        .md-code {
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+            font-size: 11.5px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 4px;
+            padding: 1px 5px;
+            color: #79c0ff;
+        }
+
+        .md-arrow {
+            color: var(--accent-green);
+            font-weight: 600;
+            margin: 0 4px;
         }
 
         /* Mermaid Graph Styles */
@@ -1041,13 +1193,13 @@ export class DiagramPanel {
         </div>
     </div>
 
-    <!-- Explanation Box -->
+    <!-- Explanation Modal / Drawer -->
     <div id="explanation-modal">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <h4 style="font-size:14px; font-weight:600;">System Architecture Insights</h4>
-            <button id="btn-close-explanation" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">✕</button>
+        <div class="explanation-header">
+            <h4 class="explanation-title">ℹ System Architecture Insights</h4>
+            <button id="btn-close-explanation" class="explanation-close" title="Close insights">✕</button>
         </div>
-        <div id="explanation-text" style="color:var(--text-muted);"></div>
+        <div id="explanation-text" class="explanation-body"></div>
     </div>
 
     <!-- Slide-over Info Drawer -->
@@ -1084,11 +1236,12 @@ export class DiagramPanel {
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
     <script>
         const vscode = acquireVsCodeApi();
-        const rawMermaid = \`${safeMermaid}\`;
-        const explanationMarkdown = \`${safeExplanation}\`;
+        const rawMermaid = ${mermaidJson};
+        const explanationMarkdown = ${explanationJson};
         const graphNodes = ${nodesJson};
         const metrics = ${metricsJson};
         const keyInfo = ${keyInfoJson};
+        const currentGranularity = ${granularityJson};
 
         // Setup API Key Modal Logic
         const apiKeyModal = document.getElementById('apiKeyModal');
@@ -1128,14 +1281,14 @@ export class DiagramPanel {
 
         if (toggleOverviewBtn) {
             toggleOverviewBtn.addEventListener('click', () => {
-                if ('${granularity}' === 'overview') return;
+                if (currentGranularity === 'overview') return;
                 vscode.postMessage({ command: 'switchGranularity', granularity: 'overview' });
             });
         }
 
         if (toggleDetailedBtn) {
             toggleDetailedBtn.addEventListener('click', () => {
-                if ('${granularity}' === 'detailed') return;
+                if (currentGranularity === 'detailed') return;
                 vscode.postMessage({ command: 'switchGranularity', granularity: 'detailed' });
             });
         }
@@ -1267,8 +1420,130 @@ export class DiagramPanel {
             metricsContainer.innerHTML += \`<span class="badge">\${metrics.granularity === 'detailed' ? '🔍 Deep Map' : '🏢 Overview'}</span>\`;
         }
 
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function formatInline(text) {
+            // Split by backtick (ASCII 96) for code spans
+            var codeParts = text.split(String.fromCharCode(96));
+            for (var p = 0; p < codeParts.length; p++) {
+                if (p % 2 === 1) {
+                    codeParts[p] = '<code class="md-code">' + escapeHtml(codeParts[p]) + '</code>';
+                } else {
+                    var s = escapeHtml(codeParts[p]);
+                    // Bold **text**
+                    var boldParts = s.split('**');
+                    if (boldParts.length > 2) {
+                        for (var b = 1; b < boldParts.length; b += 2) {
+                            boldParts[b] = '<strong>' + boldParts[b] + '</strong>';
+                        }
+                        s = boldParts.join('');
+                    }
+                    // Arrows
+                    s = s.replace(/➔/g, '<span class="md-arrow">➔</span>');
+                    s = s.replace(/->/g, '<span class="md-arrow">➔</span>');
+                    s = s.replace(/-&gt;/g, '<span class="md-arrow">➔</span>');
+                    codeParts[p] = s;
+                }
+            }
+            return codeParts.join('');
+        }
+
+        function formatMarkdown(md) {
+            if (!md || typeof md !== 'string') return '';
+
+            var lines = md.replace(/\\r/g, '').split(String.fromCharCode(10));
+            var html = [];
+            var inList = false;
+            var paragraphLines = [];
+
+            function flushParagraph() {
+                if (paragraphLines.length > 0) {
+                    html.push('<p class="md-p">' + formatInline(paragraphLines.join(' ')) + '</p>');
+                    paragraphLines = [];
+                }
+            }
+
+            function flushList() {
+                if (inList) {
+                    html.push('</ul>');
+                    inList = false;
+                }
+            }
+
+            for (var i = 0; i < lines.length; i++) {
+                var rawLine = lines[i];
+                var trimmed = rawLine.trim();
+
+                if (!trimmed) {
+                    flushParagraph();
+                    flushList();
+                    continue;
+                }
+
+                // Headers
+                if (trimmed.startsWith('### ')) {
+                    flushParagraph();
+                    flushList();
+                    html.push('<h3 class="md-h3">' + formatInline(trimmed.slice(4)) + '</h3>');
+                    continue;
+                }
+                if (trimmed.startsWith('#### ')) {
+                    flushParagraph();
+                    flushList();
+                    html.push('<h4 class="md-h4">' + formatInline(trimmed.slice(5)) + '</h4>');
+                    continue;
+                }
+                if (trimmed.startsWith('## ')) {
+                    flushParagraph();
+                    flushList();
+                    html.push('<h3 class="md-h3">' + formatInline(trimmed.slice(3)) + '</h3>');
+                    continue;
+                }
+
+                // Bullet lists
+                var isSubItem = rawLine.startsWith('  - ') || rawLine.startsWith('    - ') || rawLine.startsWith('\\t- ') || rawLine.startsWith('  * ') || rawLine.startsWith('    * ');
+                var isTopItem = !isSubItem && (trimmed.startsWith('- ') || trimmed.startsWith('* '));
+
+                if (isSubItem) {
+                    flushParagraph();
+                    if (!inList) {
+                        html.push('<ul class="md-list">');
+                        inList = true;
+                    }
+                    var text = trimmed.slice(2).trim();
+                    html.push('<li class="md-subitem">' + formatInline(text) + '</li>');
+                    continue;
+                }
+
+                if (isTopItem) {
+                    flushParagraph();
+                    if (!inList) {
+                        html.push('<ul class="md-list">');
+                        inList = true;
+                    }
+                    var text = trimmed.slice(2).trim();
+                    html.push('<li class="md-item">' + formatInline(text) + '</li>');
+                    continue;
+                }
+
+                // Regular paragraph
+                flushList();
+                paragraphLines.push(trimmed);
+            }
+
+            flushParagraph();
+            flushList();
+
+            return html.join(String.fromCharCode(10));
+        }
+
         // Setup Explanation Modal
-        document.getElementById('explanation-text').innerHTML = explanationMarkdown.replace(/\\n/g, '<br/>');
+        document.getElementById('explanation-text').innerHTML = formatMarkdown(explanationMarkdown);
         document.getElementById('btn-explanation').addEventListener('click', () => {
             document.getElementById('explanation-modal').classList.toggle('open');
         });
@@ -1281,7 +1556,7 @@ export class DiagramPanel {
             vscode.postMessage({ command: 'copyMermaid', text: rawMermaid });
         });
 
-        // Pan & Zoom Implementation
+        // Pan & Zoom Implementation with Boundary Clamping
         let scale = 1.0;
         let panX = 40;
         let panY = 40;
@@ -1293,7 +1568,50 @@ export class DiagramPanel {
         const canvas = document.getElementById('diagram-canvas');
 
         function updateTransform() {
-            canvas.style.transform = \`translate(\${panX}px, \${panY}px) scale(\${scale})\`;
+            canvas.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')';
+        }
+
+        function clampPan(x, y, currentScale) {
+            const svg = document.querySelector('#mermaid-target svg');
+            let contentW = 800;
+            let contentH = 600;
+
+            if (svg) {
+                try {
+                    const bbox = svg.getBBox();
+                    if (bbox && bbox.width > 0 && bbox.height > 0) {
+                        contentW = bbox.width;
+                        contentH = bbox.height;
+                    } else if (svg.clientWidth && svg.clientHeight) {
+                        contentW = svg.clientWidth;
+                        contentH = svg.clientHeight;
+                    }
+                } catch (e) {
+                    if (svg.clientWidth && svg.clientHeight) {
+                        contentW = svg.clientWidth;
+                        contentH = svg.clientHeight;
+                    }
+                }
+            }
+
+            const vpW = viewport ? (viewport.clientWidth || window.innerWidth) : window.innerWidth;
+            const vpH = viewport ? (viewport.clientHeight || window.innerHeight) : window.innerHeight;
+
+            const scaledW = contentW * currentScale;
+            const scaledH = contentH * currentScale;
+
+            const bufferX = Math.max(140, vpW * 0.25);
+            const bufferY = Math.max(100, vpH * 0.2);
+
+            const minX = Math.min(40, vpW - scaledW - 40) - bufferX;
+            const maxX = Math.max(40, vpW - scaledW - 40) + bufferX;
+            const minY = Math.min(40, vpH - scaledH - 120) - bufferY;
+            const maxY = Math.max(40, vpH - scaledH - 120) + bufferY;
+
+            return {
+                x: Math.min(Math.max(x, minX), maxX),
+                y: Math.min(Math.max(y, minY), maxY)
+            };
         }
 
         viewport.addEventListener('mousedown', (e) => {
@@ -1307,8 +1625,9 @@ export class DiagramPanel {
 
         window.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
-            panX = e.clientX - startX;
-            panY = e.clientY - startY;
+            const clamped = clampPan(e.clientX - startX, e.clientY - startY, scale);
+            panX = clamped.x;
+            panY = clamped.y;
             updateTransform();
         });
 
@@ -1326,44 +1645,78 @@ export class DiagramPanel {
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            panX = mouseX - (mouseX - panX) * (newScale / scale);
-            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            const rawX = mouseX - (mouseX - panX) * (newScale / scale);
+            const rawY = mouseY - (mouseY - panY) * (newScale / scale);
+            const clamped = clampPan(rawX, rawY, newScale);
+            panX = clamped.x;
+            panY = clamped.y;
             scale = newScale;
 
             updateTransform();
         }, { passive: false });
 
         document.getElementById('btn-zoom-in').addEventListener('click', () => {
-            scale = Math.min(scale * 1.2, 4.0);
+            const newScale = Math.min(scale * 1.2, 4.0);
+            const clamped = clampPan(panX, panY, newScale);
+            panX = clamped.x;
+            panY = clamped.y;
+            scale = newScale;
             updateTransform();
         });
 
         document.getElementById('btn-zoom-out').addEventListener('click', () => {
-            scale = Math.max(scale / 1.2, 0.2);
+            const newScale = Math.max(scale / 1.2, 0.2);
+            const clamped = clampPan(panX, panY, newScale);
+            panX = clamped.x;
+            panY = clamped.y;
+            scale = newScale;
             updateTransform();
         });
 
         document.getElementById('btn-reset').addEventListener('click', () => {
-            scale = 1.0;
-            panX = 40;
-            panY = 40;
+            const newScale = 1.0;
+            const clamped = clampPan(40, 40, newScale);
+            panX = clamped.x;
+            panY = clamped.y;
+            scale = newScale;
             updateTransform();
         });
 
         document.getElementById('btn-fit').addEventListener('click', () => {
             const svg = document.querySelector('#mermaid-target svg');
             if (!svg) return;
-            const bbox = svg.getBoundingClientRect();
+            let bboxW = 800;
+            let bboxH = 600;
+            try {
+                const bbox = svg.getBBox();
+                if (bbox && bbox.width > 0 && bbox.height > 0) {
+                    bboxW = bbox.width;
+                    bboxH = bbox.height;
+                } else {
+                    const r = svg.getBoundingClientRect();
+                    bboxW = r.width || 800;
+                    bboxH = r.height || 600;
+                }
+            } catch (e) {
+                const r = svg.getBoundingClientRect();
+                bboxW = r.width || 800;
+                bboxH = r.height || 600;
+            }
+
             const vpRect = viewport.getBoundingClientRect();
 
             // Include 100px bottom margin for the floating toolbar so nodes are never hidden
             const toolbarMargin = 100;
-            const effectiveBboxHeight = bbox.height + toolbarMargin;
-            const widthRatio = (vpRect.width - 80) / bbox.width;
+            const effectiveBboxHeight = bboxH + toolbarMargin;
+            const widthRatio = (vpRect.width - 80) / bboxW;
             const heightRatio = (vpRect.height - 80) / effectiveBboxHeight;
-            scale = Math.min(widthRatio, heightRatio, 1.5);
-            panX = (vpRect.width - bbox.width * scale) / 2;
-            panY = (vpRect.height - toolbarMargin - bbox.height * scale) / 2;
+            const newScale = Math.min(widthRatio, heightRatio, 1.5);
+            const rawX = (vpRect.width - bboxW * newScale) / 2;
+            const rawY = (vpRect.height - toolbarMargin - bboxH * newScale) / 2;
+            const clamped = clampPan(rawX, rawY, newScale);
+            panX = clamped.x;
+            panY = clamped.y;
+            scale = newScale;
             updateTransform();
         });
 
@@ -1437,6 +1790,11 @@ export class DiagramPanel {
                     mermaid.render('mermaid-svg-id', rawMermaid).then(({ svg }) => {
                         const target = document.getElementById('mermaid-target');
                         target.innerHTML = svg;
+
+                        const clamped = clampPan(panX, panY, scale);
+                        panX = clamped.x;
+                        panY = clamped.y;
+                        updateTransform();
 
                         // Attach delegated click listener on rendered SVG nodes as extra bridge
                         target.addEventListener('click', (e) => {

@@ -18,7 +18,7 @@
     "commands": [
       {
         "command": "blueprintbob.visualizeWorkspace",
-        "title": "BlueprintBob: Visualize Workspace Architecture",
+        "title": "Visualize Workspace Architecture",
         "category": "BlueprintBob"
       }
     ],
@@ -35,7 +35,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && npx esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+    "package": "npx --yes @vscode/vsce package --no-dependencies --allow-missing-repository && powershell -ExecutionPolicy Bypass -File ./inject-shared.ps1",
     "watch": "tsc -watch -p ./"
   },
   "dependencies": {

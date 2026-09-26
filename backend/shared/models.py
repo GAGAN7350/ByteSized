@@ -59,6 +59,10 @@ class BlueprintBobRequest(BaseModel):
     key_files: Dict[str, str] = Field(default_factory=dict)
     custom_prompt: Optional[str] = None
     repo_url: Optional[str] = None
+    api_key: Optional[str] = None
+    api_provider: Optional[str] = "gemini"  # "gemini" or "openai"
+    engine_mode: Optional[str] = "ai"  # "ai" or "offline"
+    granularity: Optional[str] = "detailed"  # "overview" or "detailed"
 
 
 class BlueprintBobResponse(BaseModel):

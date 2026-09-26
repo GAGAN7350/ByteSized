@@ -126,8 +126,19 @@ def score_file_significance(path: str, in_key_files: bool = False) -> int:
     return score
 
 
-def select_top_nodes(filtered_files: List[str], key_files: Dict[str, str], max_nodes: int = 24) -> List[str]:
-    """Select a clean, balanced, readable set of top architectural files."""
+def select_top_nodes(
+    filtered_files: List[str],
+    key_files: Dict[str, str],
+    max_nodes: Optional[int] = None,
+    granularity: str = "detailed"
+) -> List[str]:
+    """Select a clean, balanced, readable set of top architectural files based on granularity."""
+    if max_nodes is None:
+        if granularity == "overview":
+            max_nodes = 12  # Pick 10-12 nodes for overview
+        else:
+            max_nodes = 28  # Pick 24-32 nodes for detailed map
+
     if len(filtered_files) <= max_nodes:
         return sorted(filtered_files)
 
@@ -149,9 +160,10 @@ def select_top_nodes(filtered_files: List[str], key_files: Dict[str, str], max_n
 
     selected: Set[str] = set()
 
-    # Step 1: Pick top 3 from each group
+    # Step 1: Pick top files from each group (2 for overview, 3 for detailed)
+    group_sample_limit = 2 if granularity == "overview" else 3
     for gid, files in grouped.items():
-        for s, path in files[:3]:
+        for s, path in files[:group_sample_limit]:
             selected.add(path)
             if len(selected) >= max_nodes:
                 break
@@ -580,7 +592,8 @@ def resolve_dependencies_and_edges(
 def build_ast_graph(request: BlueprintBobRequest) -> DiagramGraph:
     """Build a rich, structured architecture graph deterministically from the workspace using AST analysis."""
     filtered = filter_files(request.file_tree)
-    selected_files = select_top_nodes(filtered, request.key_files)
+    granularity = (request.granularity or "detailed").lower().strip()
+    selected_files = select_top_nodes(filtered, request.key_files, granularity=granularity)
 
     groups_map: Dict[str, DiagramGroup] = {}
     nodes: List[DiagramNode] = []

@@ -23,8 +23,90 @@ def escape_label(label: str) -> str:
     return clean
 
 
+def wrap_label(label: str, max_chars: int = 22) -> str:
+    """
+    Wrap long node labels with <br/> if they exceed max_chars (e.g. >= 22 characters)
+    or exceed length limits, preventing text from clipping or overflowing node shapes.
+    Handles delimiters like slashes '/', underscores '_', hyphens '-', or spaces.
+    """
+    if not label or '<br/>' in label or '<br>' in label:
+        return label
+
+    # Check if wrapping is needed:
+    # 1. Total length exceeds 22 chars (or >= 22)
+    # 2. Long identifiers / known patterns like 'unpipelined_mult.v'
+    needs_wrap = (
+        len(label) >= 22
+        or 'unpipelined_mult.v' in label
+        or (len(label) >= 18 and ('_' in label or '/' in label))
+    )
+    if not needs_wrap:
+        return label
+
+    # If it contains slashes, e.g. bob_sessions/<br/>README.md
+    if '/' in label:
+        parts = label.split('/')
+        wrapped: List[str] = []
+        curr = ""
+        for i, p in enumerate(parts):
+            suffix = "/" if i < len(parts) - 1 else ""
+            seg = p + suffix
+            if curr and (len(curr) + len(seg) >= max_chars or len(curr) >= 10):
+                wrapped.append(curr)
+                curr = seg
+            else:
+                curr += seg
+        if curr:
+            wrapped.append(curr)
+        if len(wrapped) > 1:
+            return '<br/>'.join(wrapped)
+        label = wrapped[0]
+
+    # If it contains spaces
+    if ' ' in label:
+        words = label.split(' ')
+        wrapped = []
+        curr = ""
+        for w in words:
+            if curr and len(curr) + 1 + len(w) > max_chars:
+                wrapped.append(curr)
+                curr = w
+            else:
+                curr = f"{curr} {w}" if curr else w
+        if curr:
+            wrapped.append(curr)
+        if len(wrapped) > 1:
+            return '<br/>'.join(wrapped)
+
+    # If it contains underscores or hyphens, e.g. unpipelined_<br/>mult.v
+    for sep in ('_', '-'):
+        if sep in label:
+            parts = label.split(sep)
+            wrapped = []
+            curr = ""
+            for i, p in enumerate(parts):
+                suffix = sep if i < len(parts) - 1 else ""
+                seg = p + suffix
+                if curr and (len(curr) + len(seg) >= max_chars or len(curr) >= 10):
+                    wrapped.append(curr)
+                    curr = seg
+                else:
+                    curr += seg
+            if curr:
+                wrapped.append(curr)
+            if len(wrapped) > 1:
+                return '<br/>'.join(wrapped)
+
+    # If no delimiter and exceeds max_chars, split around midpoint
+    if len(label) >= max_chars:
+        mid = len(label) // 2
+        return f"{label[:mid]}<br/>{label[mid:]}"
+
+    return label
+
+
 def format_node_shape(node_id: str, label: str, shape: str = 'box') -> str:
-    escaped_label = escape_label(label)
+    escaped_label = wrap_label(escape_label(label))
     s = (shape or 'box').lower()
     if s == 'database':
         return f'{node_id}[("{escaped_label}")]'

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { postJson } from '@bytesized/shared';
+import { postJson } from '../shared';
 
 interface RTLIssue {
     line: number;

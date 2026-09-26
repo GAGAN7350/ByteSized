@@ -13,6 +13,7 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onLanguage:python",
     "onLanguage:javascript",
     "onLanguage:typescript",
@@ -32,17 +33,17 @@
     "commands": [
       {
         "command": "siliconbob.optimizeCode",
-        "title": "SiliconBob: Analyze & Optimize Code (All Languages)",
+        "title": "Analyze & Optimize Code (All Languages)",
         "category": "SiliconBob"
       },
       {
         "command": "siliconbob.optimizeRTL",
-        "title": "SiliconBob: Hardware RTL Optimizer (Verilog/SystemVerilog)",
+        "title": "Hardware RTL Optimizer (Verilog/SystemVerilog)",
         "category": "SiliconBob"
       },
       {
         "command": "siliconbob.connectWorkspace",
-        "title": "SiliconBob: Join Multi-Engineer Room",
+        "title": "Join Multi-Engineer Room",
         "category": "SiliconBob"
       }
     ],

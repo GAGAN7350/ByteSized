@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { createStatusBar } from '@bytesized/shared';
+import { createStatusBar } from './shared';
 import { registerOptimizeRTL } from './commands/optimizeRTL';
 import { registerConnectWorkspace } from './commands/connectWorkspace';
 

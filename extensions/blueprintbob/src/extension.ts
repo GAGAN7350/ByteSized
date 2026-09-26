@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { createStatusBar, postJson } from '@bytesized/shared';
+import { createStatusBar, postJson } from './shared';
 import { scanWorkspace } from './workspaceScanner';
 import { DiagramPanel, DiagramGraphData } from './diagramPanel';
 

@@ -3,19 +3,25 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from backend.shared.models import OptimizeRequest, OptimizeResponse
-from backend.routers.rtl.engine import analyze_and_optimize_rtl, manager
+from backend.routers.rtl.engine import analyze_and_optimize_code, manager
 
 router = APIRouter()
 
 
 @router.get("/health")
 def health_check():
-    return {"status": "online", "service": "SiliconBob Electronic Chip Engine"}
+    return {"status": "online", "service": "SiliconBob Universal Code & RTL Engine"}
 
 
+@router.post("/api/optimize-code", response_model=OptimizeResponse)
 @router.post("/api/optimize-rtl", response_model=OptimizeResponse)
-async def optimize_rtl(req: OptimizeRequest):
-    issues, optimized_code, metrics = analyze_and_optimize_rtl(req.verilog_code, req.target)
+async def optimize_code_endpoint(req: OptimizeRequest):
+    source_code = req.get_source_code()
+    issues, optimized_code, metrics = analyze_and_optimize_code(
+        code=source_code,
+        language=req.language or "verilog",
+        target=req.target or "ppa"
+    )
     return OptimizeResponse(
         status="success",
         issues=issues,

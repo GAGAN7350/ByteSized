@@ -7,13 +7,13 @@ let diagnosticCollection: vscode.DiagnosticCollection;
 let statusBarItem: vscode.StatusBarItem;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('[SiliconBob] Hardware Engineering Extension activated in IBM Bob IDE!');
+    console.log('[SiliconBob] Universal Code Optimizer Extension activated in IBM Bob IDE!');
 
     diagnosticCollection = vscode.languages.createDiagnosticCollection('siliconbob');
     context.subscriptions.push(diagnosticCollection);
 
-    statusBarItem = createStatusBar("$(chip) SiliconBob: Ready", "siliconbob.optimizeRTL");
-    statusBarItem.tooltip = "Click to Analyze and Optimize RTL";
+    statusBarItem = createStatusBar("$(check-all) SiliconBob: Optimize", "siliconbob.optimizeCode");
+    statusBarItem.tooltip = "SiliconBob: Analyze & Optimize Code (All Languages)";
     context.subscriptions.push(statusBarItem);
 
     registerOptimizeRTL(context, diagnosticCollection, statusBarItem);

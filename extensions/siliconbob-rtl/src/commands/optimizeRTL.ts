@@ -21,29 +21,36 @@ export function registerOptimizeRTL(
     diagnosticCollection: vscode.DiagnosticCollection,
     statusBarItem: vscode.StatusBarItem
 ): void {
-    const cmd = vscode.commands.registerCommand('siliconbob.optimizeRTL', async () => {
+    const handleOptimize = async () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
-            vscode.window.showWarningMessage('SiliconBob: Open a Verilog (.v / .sv) file first.');
+            vscode.window.showWarningMessage('SiliconBob: Open any code file first.');
             return;
         }
 
         const document = editor.document;
         const code = document.getText();
+        const languageId = document.languageId;
         const config = vscode.workspace.getConfiguration('siliconbob');
         const backendUrl = config.get<string>('backendUrl', 'http://localhost:8000');
 
-        statusBarItem.text = "$(sync~spin) SiliconBob: Analyzing RTL...";
+        statusBarItem.text = `$(sync~spin) SiliconBob: Analyzing ${languageId}...`;
 
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: "SiliconBob: Running AST Linting & RTL Optimization...",
+            title: `SiliconBob: Analyzing & Optimizing ${languageId.toUpperCase()} Code...`,
             cancellable: false
         }, async () => {
             try {
                 const data = await postJson<OptimizeResponse>(
                     `${backendUrl}/api/optimize-rtl`,
-                    { verilog_code: code, file_path: document.fileName, target: "ppa" }
+                    {
+                        code: code,
+                        verilog_code: code,
+                        language: languageId,
+                        file_path: document.fileName,
+                        target: "ppa"
+                    }
                 );
 
                 // Clear previous diagnostics and add squiggles
@@ -60,21 +67,26 @@ export function registerOptimizeRTL(
                 });
                 diagnosticCollection.set(document.uri, diagnostics);
 
-                // Open Side-by-Side Diff View
+                // Open Side-by-Side Diff View in the document's language
                 const optimizedDoc = await vscode.workspace.openTextDocument({
                     content: data.optimized_code,
-                    language: 'verilog'
+                    language: languageId
                 });
                 await vscode.commands.executeCommand(
                     'vscode.diff',
                     document.uri,
                     optimizedDoc.uri,
-                    `SiliconBob: ${document.fileName.split(/[\\/]/).pop()} (Original ↔ Optimized)`
+                    `SiliconBob: ${document.fileName.split(/[\\/]/).pop()} (${languageId} Original ↔ Optimized)`
                 );
 
                 statusBarItem.text = `$(check) SiliconBob: ${data.issues.length} Resolved`;
+                const metricDetails = Object.entries(data.metrics || {})
+                    .filter(([k]) => k !== 'violations_fixed')
+                    .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+                    .join(' | ');
+
                 vscode.window.showInformationMessage(
-                    `SiliconBob: Resolved ${data.issues.length} hardware issue(s)! Power: ${data.metrics.power_efficiency} | Timing: ${data.metrics.timing_slack}`
+                    `SiliconBob: Resolved ${data.issues.length} ${languageId} issue(s)! ${metricDetails}`
                 );
 
             } catch (err: any) {
@@ -84,7 +96,10 @@ export function registerOptimizeRTL(
                 );
             }
         });
-    });
+    };
 
-    context.subscriptions.push(cmd);
+    const cmd1 = vscode.commands.registerCommand('siliconbob.optimizeCode', handleOptimize);
+    const cmd2 = vscode.commands.registerCommand('siliconbob.optimizeRTL', handleOptimize);
+
+    context.subscriptions.push(cmd1, cmd2);
 }

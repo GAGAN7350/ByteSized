@@ -11,9 +11,14 @@ class RTLIssue(BaseModel):
 
 
 class OptimizeRequest(BaseModel):
-    verilog_code: str
-    file_path: Optional[str] = "input.v"
-    target: Optional[str] = "ppa"  # "ppa", "synthesizability", "timing"
+    code: Optional[str] = None
+    verilog_code: Optional[str] = None  # for backward compatibility
+    language: Optional[str] = "verilog"
+    file_path: Optional[str] = "input.txt"
+    target: Optional[str] = "ppa"  # "ppa", "synthesizability", "timing", "performance"
+
+    def get_source_code(self) -> str:
+        return self.code if self.code is not None else (self.verilog_code or "")
 
 
 class OptimizeResponse(BaseModel):

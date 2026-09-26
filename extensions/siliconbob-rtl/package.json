@@ -1,7 +1,7 @@
 {
   "name": "siliconbob-hardware-ide",
-  "displayName": "SiliconBob: Electronic Chip Design Copilot",
-  "description": "Collaborative RTL hardware optimization, inadvertent latch fixer, and PPA enhancer for IBM Bob",
+  "displayName": "SiliconBob: Universal Code Checker & Optimizer",
+  "description": "Universal multi-language AI code checker, bug hunter, anti-pattern detector, and automated refactor optimizer for IBM Bob (Python, C/C++, JS/TS, Java, Go, Rust, Verilog/RTL).",
   "version": "1.0.0",
   "publisher": "siliconbob-team",
   "engines": {
@@ -13,8 +13,18 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
+    "onLanguage:python",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:cpp",
+    "onLanguage:c",
+    "onLanguage:java",
+    "onLanguage:go",
+    "onLanguage:rust",
     "onLanguage:verilog",
     "onLanguage:systemverilog",
+    "onCommand:siliconbob.optimizeCode",
     "onCommand:siliconbob.optimizeRTL",
     "onCommand:siliconbob.connectWorkspace"
   ],
@@ -22,25 +32,30 @@
   "contributes": {
     "commands": [
       {
+        "command": "siliconbob.optimizeCode",
+        "title": "Analyze & Optimize Code (All Languages)",
+        "category": "SiliconBob"
+      },
+      {
         "command": "siliconbob.optimizeRTL",
-        "title": "SiliconBob: Analyze & Optimize RTL",
+        "title": "Hardware RTL Optimizer (Verilog/SystemVerilog)",
         "category": "SiliconBob"
       },
       {
         "command": "siliconbob.connectWorkspace",
-        "title": "SiliconBob: Join Multi-Engineer Hardware Room",
+        "title": "Join Multi-Engineer Room",
         "category": "SiliconBob"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "when": "resourceExtname == .v || resourceExtname == .sv",
-          "command": "siliconbob.optimizeRTL",
+          "when": "editorTextFocus",
+          "command": "siliconbob.optimizeCode",
           "group": "SiliconBob@1"
         },
         {
-          "when": "resourceExtname == .v || resourceExtname == .sv",
+          "when": "editorTextFocus",
           "command": "siliconbob.connectWorkspace",
           "group": "SiliconBob@2"
         }

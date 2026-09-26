@@ -66,19 +66,46 @@ IBM Bob 2.0 was central to every stage of developing SiliconBob:
 
 ---
 
+## 🗂️ Repo Structure
+
+```
+ByteSized/
+├── extensions/
+│   ├── shared/            ← @bytesized/shared — local npm package, utilities for all extensions
+│   ├── siliconbob-rtl/    ← Extension 1: RTL hardware copilot (IBM Bob / VS Code)
+│   └── 2nd-ext/           ← Extension 2: placeholder scaffold for next team member
+├── backend/
+│   ├── main.py            ← App factory — mounts all routers
+│   ├── shared/            ← Shared Pydantic models
+│   └── routers/
+│       ├── rtl/           ← SiliconBob RTL routes + engine
+│       └── second_ext/    ← 2nd-ext stub routes
+├── test_samples/          ← Sample .v files for testing
+└── bob_sessions/          ← IBM Bob session screenshots (hackathon deliverable)
+```
+
+---
+
 ## 🚀 Quick Start Guide
 
 ### 1. Start the Backend Server
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+uvicorn backend.main:app --reload --port 8000
 ```
 *API docs available at: `http://localhost:8000/docs`*
 
-### 2. Launch the Extension in IBM Bob IDE / VS Code
+### 2. Build the Shared Package (first time only)
 ```bash
-cd extension
+cd extensions/shared
+npm install
+npm run compile
+```
+
+### 3. Launch the SiliconBob RTL Extension in IBM Bob IDE / VS Code
+```bash
+cd extensions/siliconbob-rtl
 npm install
 npm run compile
 ```
@@ -87,7 +114,39 @@ npm run compile
   * `test_samples/alu_with_latch.v` (Tests latch inference bug)
   * `test_samples/race_condition.v` (Tests blocking race condition)
   * `test_samples/unpipelined_mult.v` (Tests PPA optimization)
-* Right-click anywhere in the editor $\rightarrow$ click **"SiliconBob: Analyze & Optimize RTL"**!
+* Right-click anywhere in the editor → click **"SiliconBob: Analyze & Optimize RTL"**!
+
+---
+
+## ➕ Adding a New Extension
+
+Each new extension follows the same four-step pattern:
+
+1. **Create the extension folder**
+   ```bash
+   cp -r extensions/2nd-ext extensions/<your-ext-name>
+   ```
+   Update `name`, `displayName`, and command prefixes in `extensions/<your-ext-name>/package.json`.
+
+2. **Install the shared package**
+   ```bash
+   cd extensions/<your-ext-name>
+   npm install        # resolves @bytesized/shared from file:../shared
+   npm run compile
+   ```
+
+3. **Add your backend router**
+   ```bash
+   # Create backend/routers/<your_ext>/
+   # Copy backend/routers/second_ext/ as a template
+   ```
+   Then add one line in `backend/main.py`:
+   ```python
+   from backend.routers.<your_ext>.router import router as your_ext_router
+   app.include_router(your_ext_router)
+   ```
+
+4. **Write your feature** — add command handlers in `src/commands/`, import from `@bytesized/shared`.
 
 ---
 

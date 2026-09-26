@@ -1,0 +1,49 @@
+{
+  "name": "2nd-ext",
+  "displayName": "2nd-ext: ByteSized Extension",
+  "description": "Placeholder scaffold for the second ByteSized IBM Bob / VS Code extension",
+  "version": "0.1.0",
+  "publisher": "bytesized-team",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:2nd-ext.helloWorld"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "2nd-ext.helloWorld",
+        "title": "2nd-ext: Hello World",
+        "category": "2nd-ext"
+      }
+    ],
+    "configuration": {
+      "title": "2nd-ext",
+      "properties": {
+        "2nd-ext.backendUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "URL of the SiliconBob backend server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "@bytesized/shared": "file:../shared"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}

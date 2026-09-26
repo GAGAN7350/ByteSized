@@ -1,0 +1,219 @@
+# =============================================================================
+# ByteSized Suite — Multi-Stage Docker Compose
+# Production-grade container orchestration for local dev + CI + staging.
+#
+# Services:
+#   redis         — shared pub/sub and session cache for WebSocket fan-out
+#   backend       — FastAPI ASGI application (uvicorn, 4 workers)
+#   nginx         — Reverse proxy with WebSocket upgrade and TLS termination
+#
+# Usage:
+#   docker compose up --build          # start all services
+#   docker compose up backend redis    # backend + cache only (no nginx)
+#   docker compose down -v             # stop and remove volumes
+#
+# Environment:
+#   Copy .env.example → .env and set GEMINI_API_KEY before running.
+# =============================================================================
+
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# SHARED NETWORKS
+# ---------------------------------------------------------------------------
+networks:
+  bytesized_internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+  bytesized_public:
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# SHARED VOLUMES
+# ---------------------------------------------------------------------------
+volumes:
+  redis_data:
+    driver: local
+  nginx_logs:
+    driver: local
+  backend_tmp:
+    driver: local
+
+# ---------------------------------------------------------------------------
+# SERVICES
+# ---------------------------------------------------------------------------
+services:
+
+  # ---------------------------------------------------------------------------
+  # SERVICE: Redis — pub/sub backbone for WebSocket room fan-out
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: bytesized_redis
+    restart: unless-stopped
+    networks:
+      - bytesized_internal
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --loglevel notice
+      --protected-mode yes
+      --requirepass "${REDIS_PASSWORD:-bytesized_redis_dev}"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-bytesized_redis_dev}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "768M"
+        reservations:
+          cpus: "0.1"
+          memory: "128M"
+
+  # ---------------------------------------------------------------------------
+  # SERVICE: FastAPI Backend — ASGI app with 4 Uvicorn workers
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: production
+      args:
+        PYTHON_VERSION: "3.11"
+    image: bytesized/backend:${IMAGE_TAG:-latest}
+    container_name: bytesized_backend
+    restart: unless-stopped
+    networks:
+      - bytesized_internal
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_tmp:/tmp
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      UVICORN_HOST: "0.0.0.0"
+      UVICORN_PORT: "8000"
+      UVICORN_WORKERS: "${UVICORN_WORKERS:-4}"
+      UVICORN_LOG_LEVEL: "${LOG_LEVEL:-info}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-bytesized_redis_dev}@redis:6379/0"
+      ENVIRONMENT: "${ENVIRONMENT:-production}"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health | python3 -c \"import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='online' else 1)\""]
+      interval: 15s
+      timeout: 10s
+      retries: 4
+      start_period: 20s
+    command: >
+      uvicorn backend.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers ${UVICORN_WORKERS:-4}
+      --log-level ${LOG_LEVEL:-info}
+      --access-log
+      --proxy-headers
+      --forwarded-allow-ips="*"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "2G"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+
+  # ---------------------------------------------------------------------------
+  # SERVICE: WebSocket Cluster Node (second backend replica for WS fan-out demo)
+  # ---------------------------------------------------------------------------
+  backend_ws:
+    image: bytesized/backend:${IMAGE_TAG:-latest}
+    container_name: bytesized_backend_ws
+    restart: unless-stopped
+    networks:
+      - bytesized_internal
+    environment:
+      PYTHONUNBUFFERED: "1"
+      UVICORN_HOST: "0.0.0.0"
+      UVICORN_PORT: "8001"
+      UVICORN_WORKERS: "2"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-bytesized_redis_dev}@redis:6379/0"
+      ENVIRONMENT: "${ENVIRONMENT:-production}"
+      WS_ONLY_MODE: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    command: >
+      uvicorn backend.main:app
+      --host 0.0.0.0
+      --port 8001
+      --workers 2
+      --log-level ${LOG_LEVEL:-info}
+      --proxy-headers
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8001/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 25s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1G"
+
+  # ---------------------------------------------------------------------------
+  # SERVICE: NGINX Reverse Proxy — WebSocket upgrade + TLS termination
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: bytesized_nginx
+    restart: unless-stopped
+    networks:
+      - bytesized_internal
+      - bytesized_public
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+

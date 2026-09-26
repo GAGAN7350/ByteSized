@@ -1,0 +1,45 @@
+# =============================================================================
+# ByteSized Suite — Kubernetes ConfigMap
+# Non-sensitive runtime configuration for the backend deployment.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bytesized-config
+  namespace: bytesized-prod
+  labels:
+    app.kubernetes.io/name: bytesized
+    app.kubernetes.io/component: config
+data:
+  # Uvicorn runtime settings
+  UVICORN_WORKERS: "4"
+  UVICORN_HOST: "0.0.0.0"
+  UVICORN_PORT: "8000"
+  LOG_LEVEL: "info"
+
+  # Python runtime
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+  # Application environment
+  ENVIRONMENT: "production"
+
+  # Feature flags
+  ENABLE_LLM_ENRICHMENT: "true"
+  ENABLE_METRICS_ENDPOINT: "true"
+  MAX_CODE_SIZE_BYTES: "524288"       # 512 KB maximum source file size
+  MAX_WS_ROOMS: "10000"              # maximum concurrent WebSocket rooms
+  MAX_CLIENTS_PER_ROOM: "50"         # maximum WebSocket clients per room
+  REQUEST_TIMEOUT_SECONDS: "30"
+
+  # CORS
+  CORS_ALLOW_ORIGINS: "*"
+  CORS_ALLOW_METHODS: "GET,POST,OPTIONS"
+  CORS_ALLOW_HEADERS: "Content-Type,Authorization"
+
+  # Observability
+  PROMETHEUS_ENABLED: "true"
+  PROMETHEUS_PORT: "8000"
+  PROMETHEUS_PATH: "/metrics"
+  OTEL_SERVICE_NAME: "bytesized-backend"
+  OTEL_TRACES_EXPORTER: "none"        # set to "otlp" if OpenTelemetry collector deployed

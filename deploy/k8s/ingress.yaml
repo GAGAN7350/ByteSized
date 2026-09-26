@@ -1,0 +1,165 @@
+# =============================================================================
+# ByteSized Suite — NGINX Ingress
+# WebSocket upgrade headers, TLS termination via cert-manager,
+# and separate routing rules for /ws/ (WebSocket) and REST API paths.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bytesized-ingress
+  namespace: bytesized-prod
+  labels:
+    app.kubernetes.io/name: bytesized
+    app.kubernetes.io/component: ingress
+  annotations:
+    # ---- Ingress Class ----
+    kubernetes.io/ingress.class: "nginx"
+
+    # ---- TLS Certificate via cert-manager ----
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+    # ---- WebSocket support: long-lived connections ----
+    # These timeouts must be > max WebSocket session duration.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+
+    # ---- WebSocket protocol upgrade headers ----
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+
+    # ---- Body size: allow large source file payloads ----
+    nginx.ingress.kubernetes.io/proxy-body-size: "16m"
+
+    # ---- CORS headers for browser extension clients ----
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-Requested-With"
+
+    # ---- Rate limiting — protect the optimize endpoint ----
+    # 30 requests per second per IP on the API paths
+    nginx.ingress.kubernetes.io/limit-rps: "30"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+
+    # ---- Security headers ----
+    nginx.ingress.kubernetes.io/server-snippet: |
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-Frame-Options "DENY" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # ---- Access logging format ----
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+
+spec:
+  ingressClassName: nginx
+
+  # ---- TLS Configuration ----
+  tls:
+    - hosts:
+        - bytesized.corp.example.com
+        - api.bytesized.corp.example.com
+      secretName: bytesized-tls-cert
+
+  rules:
+    # ---- Primary Domain: bytesized.corp.example.com ----
+    - host: bytesized.corp.example.com
+      http:
+        paths:
+          # WebSocket path MUST appear before the REST catch-all
+          # NGINX matches paths in declaration order — first match wins.
+          - path: /ws/
+            pathType: Prefix
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+
+          # Health check endpoint (no rate limit applied)
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+
+          # BlueprintBob architecture API
+          - path: /api/blueprintbob
+            pathType: Prefix
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+
+          # SiliconBob optimizer API
+          - path: /api/optimize-code
+            pathType: Exact
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+
+          - path: /api/optimize-rtl
+            pathType: Exact
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+
+          # Swagger UI (restrict in production with basic auth if needed)
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+
+          # OpenAPI schema
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+
+          # Catch-all REST fallthrough
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+
+    # ---- API Subdomain: api.bytesized.corp.example.com ----
+    - host: api.bytesized.corp.example.com
+      http:
+        paths:
+          - path: /ws/
+            pathType: Prefix
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bytesized-backend
+                port:
+                  number: 8000

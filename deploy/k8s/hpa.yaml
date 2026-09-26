@@ -1,0 +1,93 @@
+# =============================================================================
+# ByteSized Suite — Horizontal Pod Autoscaler
+# Scales on: CPU utilization, Memory utilization, and custom WebSocket
+# active-connection count (requires Prometheus Adapter installed).
+# =============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: bytesized-backend-hpa
+  namespace: bytesized-prod
+  labels:
+    app.kubernetes.io/name: bytesized
+    app.kubernetes.io/component: backend
+  annotations:
+    bytesized.io/description: >
+      Scales the backend deployment based on CPU, memory, and
+      live WebSocket connection pool depth per pod (target: 50 connections/pod).
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: bytesized-backend
+
+  minReplicas: 2
+  maxReplicas: 20
+
+  metrics:
+    # ---- Standard CPU Utilization (target 65%) ----
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+
+    # ---- Standard Memory Utilization (target 75%) ----
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+
+    # ---- Custom: WebSocket active connections per pod (target: 50 connections/pod) ----
+    # Requires the Prometheus Adapter to expose the metric:
+    #   bytesized_websocket_active_connections
+    # from the /metrics endpoint of each backend pod.
+    #
+    # Prometheus Adapter config snippet (in prometheus-adapter ConfigMap):
+    #   rules:
+    #   - seriesQuery: 'bytesized_websocket_active_connections{namespace!="",pod!=""}'
+    #     resources:
+    #       overrides:
+    #         namespace: { resource: namespace }
+    #         pod:       { resource: pod }
+    #     name:
+    #       matches: "bytesized_websocket_active_connections"
+    #       as: "bytesized_websocket_active_connections"
+    #     metricsQuery: 'avg_over_time(bytesized_websocket_active_connections{<<.LabelMatchers>>}[2m])'
+    - type: Pods
+      pods:
+        metric:
+          name: bytesized_websocket_active_connections
+        target:
+          type: AverageValue
+          averageValue: "50"    # scale out when avg connections per pod exceeds 50
+
+  # ---- Scale Behavior ----
+  behavior:
+    scaleUp:
+      # Stabilize scale-up over 60s window to avoid thrashing during traffic bursts
+      stabilizationWindowSeconds: 60
+      policies:
+        # Allow adding at most 2 pods per 60 seconds
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+        # OR allow adding 50% of current replicas per 60 seconds (whichever is larger)
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+      selectPolicy: Max
+
+    scaleDown:
+      # Stabilize scale-down over 5 minutes to prevent premature scale-down
+      # while WebSocket sessions are still open
+      stabilizationWindowSeconds: 300
+      policies:
+        # Allow removing at most 1 pod per 120 seconds
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min

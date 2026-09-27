@@ -1,32 +1,52 @@
 import json
+import logging
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 
 from backend.shared.models import OptimizeRequest, OptimizeResponse
 from backend.routers.rtl.engine import analyze_and_optimize_code, manager
 
+logger = logging.getLogger("bytesized.rtl")
 router = APIRouter()
 
 
-@router.get("/health")
+@router.get("/health", tags=["ops"])
 def health_check():
     return {"status": "online", "service": "SiliconBob Universal Code & RTL Engine"}
 
 
-@router.post("/api/optimize-code", response_model=OptimizeResponse)
-@router.post("/api/optimize-rtl", response_model=OptimizeResponse)
-async def optimize_code_endpoint(req: OptimizeRequest):
+@router.post(
+    "/api/optimize-code",
+    response_model=OptimizeResponse,
+    summary="Analyse and optimise source code",
+    tags=["RTL"],
+)
+@router.post("/api/optimize-rtl", response_model=OptimizeResponse, include_in_schema=False)
+async def optimize_code_endpoint(request: Request, req: OptimizeRequest):
     source_code = req.get_source_code()
+    if not source_code.strip():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="source code must not be empty")
+
+    # Basic path-traversal guard on the file_path hint (informational field only)
+    if req.file_path and (".." in req.file_path or req.file_path.startswith("/")):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="file_path must be a relative path with no '..'")
+
+    logger.debug(
+        '"event":"analyze","lang":"%s","target":"%s","bytes":%d',
+        req.language, req.target, len(source_code),
+    )
     issues, optimized_code, metrics = analyze_and_optimize_code(
         code=source_code,
         language=req.language or "verilog",
-        target=req.target or "ppa"
+        target=req.target or "ppa",
     )
     return OptimizeResponse(
         status="success",
         issues=issues,
         optimized_code=optimized_code,
-        metrics=metrics
+        metrics=metrics,
     )
 
 

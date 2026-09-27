@@ -1,0 +1,111 @@
+# ============================================================================
+# ByteSized CI — lint → test → build → security audit
+#
+# Triggers:
+#   push / pull_request on main and any dev/* branch
+#
+# Jobs:
+#   backend-ci  — Ruff lint, pytest with coverage, pip-audit
+#   extension-ci — ESLint, TypeScript compile, npm audit
+# ============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, "dev/**"]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+# ---------------------------------------------------------------------------
+# Shared permissions (read-only by default, override per job as needed)
+# ---------------------------------------------------------------------------
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Backend — Python lint, tests, security audit
+  # ──────────────────────────────────────────────────────────────────────────
+  backend-ci:
+    name: Backend (Python ${{ env.PYTHON_VERSION }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Lint (Ruff)
+        run: ruff check backend/ --output-format=github
+
+      - name: Run tests with coverage
+        env:
+          ENVIRONMENT: development
+          CORS_ORIGINS: "http://localhost:3000"
+        run: |
+          pytest backend/tests/ backend/test_blueprintbob.py \
+            --tb=short \
+            --cov=backend \
+            --cov-report=term-missing \
+            --cov-fail-under=60 \
+            -q
+
+      - name: Security audit (pip-audit)
+        run: pip-audit -r backend/requirements.txt --desc
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Extensions — TypeScript compile + lint + npm audit
+  # ──────────────────────────────────────────────────────────────────────────
+  extension-ci:
+    name: Extensions (Node ${{ env.NODE_VERSION }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        extension: [siliconbob-rtl, blueprintbob]
+      fail-fast: false
+
+    defaults:
+      run:
+        working-directory: extensions/${{ matrix.extension }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: extensions/${{ matrix.extension }}/package-lock.json
+
+      - name: Install shared package
+        working-directory: extensions/shared
+        run: npm ci
+
+      - name: Install extension dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Security audit (npm audit)
+        run: npm audit --audit-level=high
+        continue-on-error: false

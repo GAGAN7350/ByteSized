@@ -1,0 +1,33 @@
+# Ruff configuration for ByteSized backend
+# https://docs.astral.sh/ruff/configuration/
+
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "S",    # flake8-bandit (security)
+    "N",    # pep8-naming
+]
+
+ignore = [
+    "S101",   # assert statements (fine in tests)
+    "S603",   # subprocess call (used intentionally)
+    "B008",   # function call in default argument (FastAPI Depends pattern)
+    "N999",   # invalid module name (handled by convention)
+]
+
+[lint.per-file-ignores]
+"backend/tests/*" = ["S", "N"]          # security + naming rules relaxed in tests
+"backend/test_*.py" = ["S", "N"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

@@ -8,6 +8,7 @@ class RTLIssue(BaseModel):
     severity: str  # "error" or "warning"
     message: str
     rule_id: str
+    fixed_line: Optional[str] = None  # the auto-corrected line, if available
 
 
 class OptimizeRequest(BaseModel):

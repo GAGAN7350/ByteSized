@@ -37,14 +37,16 @@ def optimize_verilog(code: str, target: str = "ppa") -> Tuple[List[RTLIssue], st
             if match and not ("<=" in line) and not ("==" in line):
                 reg_name = match.group(1)
                 col = line.find("=") + 1
+                fixed = re.sub(r"=\s*", "<= ", line, count=1)
                 issues.append(RTLIssue(
                     line=line_num,
                     column=col,
                     severity="error",
                     message=f"Race Condition Hazard: Blocking assignment '=' used for register '{reg_name}' inside posedge clock block. Sequential logic requires '<=' (non-blocking).",
-                    rule_id="RTL-001-BLOCKING-IN-SEQ"
+                    rule_id="RTL-001-BLOCKING-IN-SEQ",
+                    fixed_line=fixed,
                 ))
-                optimized_lines[idx] = re.sub(r"=\s*", "<= ", line, count=1)
+                optimized_lines[idx] = fixed
 
         # 3. Inadvertent Latch Inference
         if re.search(r"\bcase\s*\(", stripped):
@@ -57,44 +59,48 @@ def optimize_verilog(code: str, target: str = "ppa") -> Tuple[List[RTLIssue], st
 
         if in_case_block and "endcase" in stripped:
             if not case_has_default:
+                indent = "      "
+                default_fix = f"{indent}default: begin\n{indent}  result <= 'b0; // SiliconBob safe reset\n{indent}end\n"
                 issues.append(RTLIssue(
                     line=case_start_line,
                     column=1,
                     severity="error",
                     message="Inadvertent Latch Alert: 'case' construct lacks 'default:' branch. Synthesis will infer unwanted transparent hardware latches.",
-                    rule_id="RTL-002-INFERRED-LATCH"
+                    rule_id="RTL-002-INFERRED-LATCH",
+                    fixed_line=default_fix + line,
                 ))
-                indent = "      "
-                default_fix = f"{indent}default: begin\n{indent}  result <= 'b0; // SiliconBob safe reset\n{indent}end\n"
                 optimized_lines[idx] = default_fix + line
             in_case_block = False
 
         # 4. Non-synthesizable delays
         if re.search(r"#\s*\d+", stripped) and not stripped.startswith("//"):
+            fixed = re.sub(r"#\s*\d+\s*;?", "", line)
             issues.append(RTLIssue(
                 line=line_num,
                 column=line.find("#") + 1,
                 severity="warning",
                 message="Non-synthesizable Construct: Simulation delay (#delay) detected in synthesizable RTL code. Ignored by EDA synthesis tools.",
-                rule_id="RTL-003-DELAY-SYNTH"
+                rule_id="RTL-003-DELAY-SYNTH",
+                fixed_line=fixed,
             ))
-            optimized_lines[idx] = re.sub(r"#\s*\d+\s*;?", "", line)
+            optimized_lines[idx] = fixed
 
         # 5. Critical path pipelining
         if ("a * b" in stripped or "a*b" in stripped) and ("+" in stripped) and not stripped.startswith("//"):
-            issues.append(RTLIssue(
-                line=line_num,
-                column=1,
-                severity="warning",
-                message="Critical Path Timing Bottleneck: Deep unpipelined multiply-accumulate unit detected. Critical path delay (T_mult + T_add) will limit maximum clock frequency.",
-                rule_id="RTL-004-PIPELINE-RETIMING"
-            ))
             pipelined_code = (
                 "        // SiliconBob PPA Optimization: 2-stage pipeline register inserted to break critical path\n"
                 "        mult_stage1 <= a * b; // Stage 1: Fast 16x16 multiplier register\n"
                 "        c_stage1    <= c;     // Stage 1: Pipeline delay alignment\n"
                 "        out         <= mult_stage1 + c_stage1; // Stage 2: Balanced adder"
             )
+            issues.append(RTLIssue(
+                line=line_num,
+                column=1,
+                severity="warning",
+                message="Critical Path Timing Bottleneck: Deep unpipelined multiply-accumulate unit detected. Critical path delay (T_mult + T_add) will limit maximum clock frequency.",
+                rule_id="RTL-004-PIPELINE-RETIMING",
+                fixed_line=pipelined_code,
+            ))
             optimized_lines[idx] = pipelined_code
 
     has_pipeline = any(i.rule_id == "RTL-004-PIPELINE-RETIMING" for i in issues)
@@ -133,39 +139,47 @@ def optimize_python(code: str) -> Tuple[List[RTLIssue], str, Dict[str, str]]:
 
         # Mutable default arguments
         if re.search(r"def\s+\w+\(.*=\s*(\[\]|\{\})\)", stripped):
+            fixed = re.sub(r"=\s*\[\]", "=None", line)
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="error",
                 message="Anti-pattern: Mutable default argument detected in function signature. State persists across invocations.",
-                rule_id="PY-001-MUTABLE-DEFAULT"
+                rule_id="PY-001-MUTABLE-DEFAULT",
+                fixed_line=fixed,
             ))
-            optimized[idx] = re.sub(r"=\s*\[\]", "=None", line)
+            optimized[idx] = fixed
 
         # Bare except
         if stripped == "except:":
+            fixed = line.replace("except:", "except Exception:")
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="warning",
                 message="Dangerous Exception Handling: Bare 'except:' catches system exits and interrupts. Use 'except Exception:'.",
-                rule_id="PY-002-BARE-EXCEPT"
+                rule_id="PY-002-BARE-EXCEPT",
+                fixed_line=fixed,
             ))
-            optimized[idx] = line.replace("except:", "except Exception:")
+            optimized[idx] = fixed
 
         # Inefficient range(len())
         if "for i in range(len(" in stripped or "for idx in range(len(" in stripped:
+            fixed = re.sub(r"for\s+(\w+)\s+in\s+range\(len\((\w+)\)\):", r"for \1, item in enumerate(\2):", line)
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="warning",
                 message="Non-idiomatic Iteration: 'range(len(...))' is slow and unpythonic. Auto-converted to 'enumerate(...)'.",
-                rule_id="PY-003-RANGE-LEN"
+                rule_id="PY-003-RANGE-LEN",
+                fixed_line=fixed,
             ))
-            optimized[idx] = re.sub(r"for\s+(\w+)\s+in\s+range\(len\((\w+)\)\):", r"for \1, item in enumerate(\2):", line)
+            optimized[idx] = fixed
 
         # Type equality check instead of isinstance
         if re.search(r"type\(\w+\)\s*==\s*\w+", stripped):
+            fixed = re.sub(r"type\((\w+)\)\s*==\s*(\w+)", r"isinstance(\1, \2)", line)
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="warning",
                 message="Type Checking Anti-Pattern: 'type(x) == T' does not handle inheritance. Auto-converted to 'isinstance(x, T)'.",
-                rule_id="PY-004-TYPE-CHECK"
+                rule_id="PY-004-TYPE-CHECK",
+                fixed_line=fixed,
             ))
-            optimized[idx] = re.sub(r"type\((\w+)\)\s*==\s*(\w+)", r"isinstance(\1, \2)", line)
+            optimized[idx] = fixed
 
     header = f"# [SiliconBob AI Optimized Python | Violations Resolved: {len(issues)}]\n\n"
     return issues, header + "\n".join(optimized), {
@@ -187,32 +201,38 @@ def optimize_cpp(code: str) -> Tuple[List[RTLIssue], str, Dict[str, str]]:
         line_num = idx + 1
         stripped = line.strip()
 
-        # Buffer overflow: strcpy
-        if "strcpy(" in stripped:
+        # Buffer overflow: strcpy (but NOT strncpy)
+        if re.search(r"\bstrcpy\s*\(", stripped):
+            fixed = re.sub(r"\bstrcpy\s*\(", "strncpy(", line)
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="error",
                 message="Security Hazard (CWE-120): Unbounded 'strcpy' causes buffer overflow. Auto-rewritten to safe 'strncpy'.",
-                rule_id="CPP-001-BUFFER-OVERFLOW"
+                rule_id="CPP-001-BUFFER-OVERFLOW",
+                fixed_line=fixed,
             ))
-            optimized[idx] = line.replace("strcpy(", "strncpy(")
+            optimized[idx] = fixed
 
-        # Deprecated unsafe: gets
-        if "gets(" in stripped:
+        # Deprecated unsafe: gets — must NOT match fgets/sgets etc.
+        if re.search(r"\bgets\s*\(", stripped):
+            fixed = re.sub(r"\bgets\s*\(", "fgets(", line)
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="error",
                 message="Critical Security Vulnerability (CWE-242): Insecure 'gets()' allows arbitrary code execution. Auto-rewritten to 'fgets()'.",
-                rule_id="CPP-002-GETS-INSECURE"
+                rule_id="CPP-002-GETS-INSECURE",
+                fixed_line=fixed,
             ))
-            optimized[idx] = line.replace("gets(", "fgets(")
+            optimized[idx] = fixed
 
-        # Buffer overflow: sprintf
-        if "sprintf(" in stripped and not "snprintf(" in stripped:
+        # Buffer overflow: sprintf (but NOT snprintf)
+        if re.search(r"\bsprintf\s*\(", stripped) and not re.search(r"\bsnprintf\s*\(", stripped):
+            fixed = re.sub(r"\bsprintf\s*\(", "snprintf(", line)
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="warning",
                 message="Security Hazard (CWE-134): Format string 'sprintf' lacks buffer size bounds. Auto-rewritten to 'snprintf'.",
-                rule_id="CPP-003-SPRINTF-BOUNDS"
+                rule_id="CPP-003-SPRINTF-BOUNDS",
+                fixed_line=fixed,
             ))
-            optimized[idx] = line.replace("sprintf(", "snprintf(")
+            optimized[idx] = fixed
 
     header = f"// [SiliconBob AI Optimized C/C++ | Security & Performance Hardened]\n\n"
     return issues, header + "\n".join(optimized), {
@@ -236,21 +256,25 @@ def optimize_javascript(code: str) -> Tuple[List[RTLIssue], str, Dict[str, str]]
 
         # var -> const/let
         if stripped.startswith("var "):
+            fixed = re.sub(r"^(\s*)var\s+", r"\1const ", line)
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="warning",
                 message="Legacy Scope Hazard: 'var' has function scope and leaks variables. Auto-upgraded to 'const' / 'let'.",
-                rule_id="JS-001-NO-VAR"
+                rule_id="JS-001-NO-VAR",
+                fixed_line=fixed,
             ))
-            optimized[idx] = re.sub(r"^(\s*)var\s+", r"\1const ", line)
+            optimized[idx] = fixed
 
         # Loose equality == -> ===
         if " == " in stripped and not " === " in stripped:
+            fixed = line.replace(" == ", " === ")
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="warning",
                 message="Type Coercion Bug: Loose equality '==' causes unexpected coercion. Auto-upgraded to strict '==='.",
-                rule_id="JS-002-STRICT-EQUAL"
+                rule_id="JS-002-STRICT-EQUAL",
+                fixed_line=fixed,
             ))
-            optimized[idx] = line.replace(" == ", " === ")
+            optimized[idx] = fixed
 
         # Loose inequality != -> !==
         if " != " in stripped and not " !== " in stripped:
@@ -290,16 +314,17 @@ def optimize_java(code: str) -> Tuple[List[RTLIssue], str, Dict[str, str]]:
         stripped = line.strip()
 
         # String identity vs equality comparison
-        if re.search(r'(\w+)\s*==\s*"([^"]*)"', stripped):
-            match = re.search(r'(\w+)\s*==\s*"([^"]*)"', stripped)
+        match = re.search(r'(\w+)\s*==\s*"([^"]*)"', stripped)
+        if match:
+            var_name, lit = match.group(1), match.group(2)
+            fixed = line.replace(f'{var_name} == "{lit}"', f'"{lit}".equals({var_name})')
             issues.append(RTLIssue(
                 line=line_num, column=1, severity="error",
                 message="Logic Error: Comparing String reference identity using '=='. Auto-converted to '.equals()'.",
-                rule_id="JAVA-001-STRING-EQUALS"
+                rule_id="JAVA-001-STRING-EQUALS",
+                fixed_line=fixed,
             ))
-            if match:
-                var_name, lit = match.group(1), match.group(2)
-                optimized[idx] = line.replace(f'{var_name} == "{lit}"', f'"{lit}".equals({var_name})')
+            optimized[idx] = fixed
 
         # System.out.println
         if "System.out.println(" in stripped and not stripped.startswith("//"):

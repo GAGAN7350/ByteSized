@@ -27,6 +27,8 @@ ByteSized Suite (IBM Bob IDE / VS Code)
 │                        (Verilog, Python, C/C++, JS/TS, Java, Go, Rust)
 ├── BlueprintBob     ──> Interactive Architecture & Codebase Visualizer
 │                        (Offline AST engine + AI mode via Gemini/OpenAI)
+├── PCB & Chip Studio──> Interactive Microchip Block Layout & Circuit Designer
+│                        (Draggable IC blocks, pinouts, and hardware netlist exporter)
 └── Backend          ──> Unified FastAPI server with WebSocket co-working hub
 ```
 
@@ -87,6 +89,19 @@ Open the Command Palette (`Ctrl+Shift+P`) and search `BlueprintBob`, or click th
 
 ---
 
+### Extension 3 — Microchip & PCB Visual Designer (`extensions/02-chip-pcb-designer/`)
+
+**Command:** `ByteSized: Open Microchip & PCB Visual Designer`  
+Open the Command Palette (`Ctrl+Shift+P`) and search `ByteSized: Open Microchip & PCB Visual Designer`.
+
+**What it provides:**
+- **Interactive Component Palette:** 32-bit ALU Core, ARM / RISC-V MCU, 64KB SRAM Cache, PLL Clock Generator, and AXI4 Bus Arbiter.
+- **Visual Dot-Grid Canvas:** Drag, drop, and position integrated circuit logic blocks and pinout terminals in real time.
+- **Hardware Netlist Exporter:** 1-click serialization to export the complete schematic netlist directly back to the editor.
+- **Air-Gapped Operation:** Operates 100% locally with zero external cloud dependencies.
+
+---
+
 ## Repo Structure
 
 ```
@@ -123,11 +138,15 @@ ByteSized/
 │   │           ├── connectWorkspace.ts  ← WebSocket room join
 │   │           ├── codeActions.ts       ← In-gutter quick-fix actions
 │   │           └── runSimulation.ts     ← RTL simulation runner
-│   └── blueprintbob/
+│   ├── blueprintbob/
+│   │   └── src/
+│   │       ├── extension.ts         ← Activation + command handler
+│   │       ├── workspaceScanner.ts  ← Scans workspace file tree + key files
+│   │       └── diagramPanel.ts      ← Webview panel: Mermaid canvas, drawers, modals
+│   └── 02-chip-pcb-designer/   ← Extension 3: Microchip & PCB visual studio
+│       ├── package.json         ← Extension manifest & commands
 │       └── src/
-│           ├── extension.ts         ← Activation + command handler
-│           ├── workspaceScanner.ts  ← Scans workspace file tree + key files
-│           └── diagramPanel.ts      ← Webview panel: Mermaid canvas, drawers, modals
+│           └── extension.ts     ← Webview panel: draggable IC blocks, pinouts, netlist export
 ├── deploy/
 │   ├── Dockerfile              ← Multi-stage production image (non-root, slim)
 │   ├── docker-compose.yml      ← Redis + backend (4 workers) + nginx (TLS)
@@ -258,11 +277,47 @@ npm run compile
 
 ---
 
+### Step 7 — Build and launch the Microchip & PCB Designer extension
+
+```bash
+cd extensions/02-chip-pcb-designer
+npm install
+npm run compile
+```
+
+- In the Extension Development Host (or IBM Bob IDE), press `Ctrl+Shift+P` → **"ByteSized: Open Microchip & PCB Visual Designer"**.
+- The interactive **Microchip & PCB Studio** canvas opens.
+- Click components (ALU Core, ARM/RISC-V MCU, SRAM Cache, PLL Clock, AXI4 Bus) to drop them onto the canvas and drag to position.
+- Click **"Export Netlist"** to export the integrated circuit netlist directly back to the editor.
+
+---
+
+### Step 8 — Optional: Package & Install all 3 Extensions permanently as .VSIX
+
+If you prefer installing the extensions permanently into **IBM Bob IDE** or **VS Code** rather than running via F5:
+
+```bash
+# 1. Package and install Extension 1 (SiliconBob)
+cd extensions/siliconbob-rtl
+npm run package
+bobide --install-extension siliconbob-hardware-ide-1.0.0.vsix --force
+
+# 2. Package and install Extension 2 (BlueprintBob)
+cd ../blueprintbob
+npm run package
+bobide --install-extension blueprintbob-0.1.0.vsix --force
+
+# 3. Package and install Extension 3 (Microchip & PCB Designer)
+cd ../02-chip-pcb-designer
+npx @vscode/vsce package --no-dependencies
+bobide --install-extension bytesized-pcb-chip-designer-1.0.0.vsix --force
+```
+
+---
+
 ## Using the Extensions
 
-The extensions are currently run from an Extension Development Host. Start the
-backend first, then press **F5** from either extension folder to open a host
-window with the extension loaded.
+The extensions can be run either from an **Extension Development Host (F5)** or permanently installed via **.vsix** using the commands above. Start the backend first on port 8000:
 
 ### Complete end-to-end startup
 

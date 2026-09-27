@@ -27,6 +27,7 @@
     "onCommand:siliconbob.optimizeCode",
     "onCommand:siliconbob.optimizeRTL",
     "onCommand:siliconbob.connectWorkspace",
+    "onCommand:siliconbob.runSimulation",
     "onCommand:siliconbob.previewFix"
   ],
   "main": "./out/extension.js",
@@ -45,6 +46,11 @@
       {
         "command": "siliconbob.connectWorkspace",
         "title": "Join Multi-Engineer Room",
+        "category": "SiliconBob"
+      },
+      {
+        "command": "siliconbob.runSimulation",
+        "title": "Run CycleSim Simulation",
         "category": "SiliconBob"
       },
       {

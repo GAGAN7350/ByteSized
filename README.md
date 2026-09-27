@@ -347,6 +347,20 @@ Some findings, such as ignored Go errors, Rust `unwrap()` calls, hardcoded
 credentials, and TODO markers, are advisory only and do not provide an
 automatic fix.
 
+### SiliconBob: Run CycleSim
+
+With the backend running and the SiliconBob extension loaded in the Extension
+Development Host:
+
+1. Press `Ctrl+Shift+P`.
+2. Run **SiliconBob: Run CycleSim Simulation**.
+3. Choose **Ripple Counter** or **D Flip-Flop Chain**.
+4. SiliconBob calls `/api/simulate/` and opens the final signal states and VCD
+   waveform output in a new editor tab.
+
+The CycleSim backend also exposes `GET /api/simulate/health` and accepts custom
+gate, flip-flop, stimulus, and clock definitions through `POST /api/simulate/`.
+
 ### SiliconBob: Lint on save
 
 Lint-on-save is enabled by default. Saving a supported source file silently
@@ -454,6 +468,7 @@ The primary commands are:
 |---|---|---|
 | `SiliconBob: Analyze & Optimize Code (All Languages)` | SiliconBob | Analyze the active file and show an optimized diff |
 | `SiliconBob: Preview Fix` | SiliconBob | Preview one deterministic issue fix |
+| `SiliconBob: Run CycleSim Simulation` | SiliconBob | Run a built-in ripple counter or DFF-chain simulation |
 | `SiliconBob: Join Multi-Engineer Room` | SiliconBob | Join a WebSocket collaboration room |
 | `SiliconBob: Leave Collaboration Room` | SiliconBob | Close the active collaboration socket |
 | `BlueprintBob: Visualize Workspace Architecture` | BlueprintBob | Scan and render the active workspace architecture |

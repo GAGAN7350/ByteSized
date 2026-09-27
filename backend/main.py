@@ -23,6 +23,7 @@ from slowapi.util import get_remote_address
 from backend.config import get_settings
 from backend.routers.rtl.router import router as rtl_router
 from backend.routers.blueprintbob.router import router as blueprintbob_router
+from backend.routers.simulator.router import router as simulator_router
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -107,6 +108,7 @@ async def request_id_and_logging(request: Request, call_next) -> Response:
 # ---------------------------------------------------------------------------
 app.include_router(rtl_router)
 app.include_router(blueprintbob_router)
+app.include_router(simulator_router)
 
 # ---------------------------------------------------------------------------
 # Global health / liveness endpoint

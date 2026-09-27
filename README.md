@@ -264,6 +264,61 @@ The extensions are currently run from an Extension Development Host. Start the
 backend first, then press **F5** from either extension folder to open a host
 window with the extension loaded.
 
+### Complete end-to-end startup
+
+Use three terminals on Windows so the backend and extension development tools
+can remain running at the same time. From the repository root, create a Python
+3.13 virtual environment, activate it, and install the backend dependencies:
+
+```powershell
+cd C:\Users\keert\ByteSized
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r backend\requirements-dev.txt
+Copy-Item .env.example .env
+```
+
+Python 3.13 is recommended for the backend. Python 3.14 alpha releases may
+cause FastAPI/Pydantic compatibility errors. For basic local use, the default
+`.env` values are sufficient. Add `GEMINI_API_KEY` to `.env` only if you want
+BlueprintBob AI mode. Never commit `.env` or place API keys in source code.
+
+In the first terminal, start the FastAPI backend from the repository root:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn backend.main:app --reload --port 8000
+```
+
+Confirm that `http://localhost:8000/health` returns an online response before
+opening an extension. The backend also provides interactive API documentation
+at `http://localhost:8000/docs`. In a second terminal, build SiliconBob:
+
+```powershell
+cd C:\Users\keert\ByteSized\extensions\siliconbob-rtl
+npm install
+npm run compile
+code .
+```
+
+Press **F5** in VS Code or IBM Bob to open the Extension Development Host. In
+that host, open a sample or project source file and run the SiliconBob command
+from the Command Palette. In a third terminal, build BlueprintBob if it is
+not already compiled:
+
+```powershell
+cd C:\Users\keert\ByteSized\extensions\blueprintbob
+npm install
+npm run compile
+```
+
+Open the repository you want to inspect as the active workspace in the
+Extension Development Host, then run the BlueprintBob command. If both
+extensions are being developed together, compile both folders first and use
+the corresponding launch configuration or press **F5** from the extension
+project being tested.
+
 ### SiliconBob: Analyze and optimize code
 
 1. Make sure the backend is running at `http://localhost:8000`.
@@ -333,17 +388,75 @@ multi-process production setup.
 
 ### BlueprintBob: Visualize a workspace
 
-1. Open the repository you want to inspect as the active workspace.
-2. Run **BlueprintBob: Visualize Workspace Architecture**.
-3. Wait for the architecture canvas to load.
-4. Use **Overview** for a high-level map or **Deep Map** for individual files.
-5. Use **Offline** for deterministic local analysis.
-6. Use **AI Mode** only when an API key is configured and you want an
-   AI-generated explanation.
+Dev2 owns the BlueprintBob architecture visualizer. It is a VS Code/IBM Bob
+extension that scans the active workspace, sends a filtered file tree plus
+important files to the BlueprintBob backend, and renders the returned graph in
+an interactive webview. To use Dev2, first start the backend and then launch
+the BlueprintBob extension through the Extension Development Host. Open the
+repository that you want to understand, press `Ctrl+Shift+P`, and select
+**BlueprintBob: Visualize Workspace Architecture**. BlueprintBob reads the
+workspace README, manifests such as `package.json` or `requirements.txt`,
+entrypoints, routers, models, services, and shared modules. It excludes
+generated folders and binary/noise files such as `node_modules`, `.git`,
+`dist`, `out`, virtual environments, and compiled artifacts. After scanning,
+the panel displays a Mermaid architecture diagram, grouped components,
+relationships, an explanation, and file metadata. Click a file node or its
+file reference to open the source file in the editor; use the copy action to
+copy Mermaid output when you need to include the diagram elsewhere.
+
+Use **Overview** when you need a concise system-level map with macro
+components, and use **Deep Map** when you need individual backend routers,
+engines, extension files, tests, and configuration nodes. Use **Offline** mode
+for deterministic AST/file-tree analysis with no API key or external AI
+request. Use **AI Mode** for a richer generated explanation: open the API key
+dialog from the BlueprintBob panel, choose the provider, enter the key, and
+save it. The key is stored through VS Code Secret Storage and is sent only as
+part of the generation request; it is not written into the repository. The
+backend must have the matching provider configuration and network access. The
+panel toolbar can switch modes and regenerate the diagram, change granularity,
+save or clear the key, and refresh the visualization. If the active workspace
+has no readable files, BlueprintBob reports that there is nothing to visualize.
 
 Offline mode does not require an API key. AI mode uses the backend's configured
 provider and key; do not place private credentials in source files or commit
 them to the repository.
+
+The Dev2 data flow is:
+
+```text
+Active workspace
+    -> workspaceScanner.ts
+    -> POST /api/blueprintbob/generate
+    -> analyzer.py / ast_engine.py / generator.py
+    -> graph + Mermaid response
+    -> diagramPanel.ts webview
+```
+
+If BlueprintBob fails, check the backend terminal first, then verify
+`blueprintbob.backendUrl` points to the running server. Offline mode is the
+recommended first test because it does not depend on an AI key or provider.
+The BlueprintBob backend health endpoint is
+`http://localhost:8000/api/blueprintbob/health`.
+
+### Extension settings and command reference
+
+The important settings are:
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `siliconbob.backendUrl` | `http://localhost:8000` | Backend used by SiliconBob |
+| `siliconbob.lintOnSave` | `true` | Re-analyze supported files after saving |
+| `blueprintbob.backendUrl` | `http://localhost:8000` | Backend used by BlueprintBob |
+
+The primary commands are:
+
+| Command | Extension | Purpose |
+|---|---|---|
+| `SiliconBob: Analyze & Optimize Code (All Languages)` | SiliconBob | Analyze the active file and show an optimized diff |
+| `SiliconBob: Preview Fix` | SiliconBob | Preview one deterministic issue fix |
+| `SiliconBob: Join Multi-Engineer Room` | SiliconBob | Join a WebSocket collaboration room |
+| `SiliconBob: Leave Collaboration Room` | SiliconBob | Close the active collaboration socket |
+| `BlueprintBob: Visualize Workspace Architecture` | BlueprintBob | Scan and render the active workspace architecture |
 
 ### Troubleshooting
 

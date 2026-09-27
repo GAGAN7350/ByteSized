@@ -144,6 +144,10 @@ export class DiagramPanel {
         this._panel.webview.postMessage({ command: 'openApiKeyModal' });
     }
 
+    public hideLoading() {
+        this._panel.webview.postMessage({ command: 'hideLoading' });
+    }
+
     private async _openFileInEditor(filePath: string) {
         try {
             let targetUri: vscode.Uri;
@@ -1436,6 +1440,7 @@ export class DiagramPanel {
         ];
 
         let loadingInterval = null;
+        let loadingSafetyTimer = null;
         let currentMessageIndex = 0;
 
         function showLoading(initialText) {
@@ -1454,6 +1459,20 @@ export class DiagramPanel {
             if (loadingInterval) {
                 clearInterval(loadingInterval);
             }
+            if (loadingSafetyTimer) {
+                clearTimeout(loadingSafetyTimer);
+            }
+
+            // 30-second safety timeout: auto-dismiss loading overlay if stalled
+            loadingSafetyTimer = setTimeout(() => {
+                hideLoading();
+                const banner = document.getElementById('ai-error-banner');
+                const bannerMsg = document.getElementById('banner-error-msg');
+                if (banner && bannerMsg) {
+                    bannerMsg.textContent = "Operation timed out. Displaying current architecture state.";
+                    banner.style.display = 'flex';
+                }
+            }, 30000);
 
             currentMessageIndex = 1;
             loadingInterval = setInterval(() => {
@@ -1474,6 +1493,10 @@ export class DiagramPanel {
             if (loadingInterval) {
                 clearInterval(loadingInterval);
                 loadingInterval = null;
+            }
+            if (loadingSafetyTimer) {
+                clearTimeout(loadingSafetyTimer);
+                loadingSafetyTimer = null;
             }
             if (overlay) {
                 overlay.style.display = 'none';
@@ -1554,6 +1577,8 @@ export class DiagramPanel {
             const msg = event.data;
             if (msg && msg.command === 'openApiKeyModal') {
                 openKeyModal();
+            } else if (msg && msg.command === 'hideLoading') {
+                hideLoading();
             }
         });
 
@@ -2058,10 +2083,18 @@ export class DiagramPanel {
                         });
                     }).catch(err => {
                         console.error('Mermaid render error:', err);
+                        try {
+                            document.querySelectorAll('[id^="dmermaid"], [id^="mermaid-svg"], .error-icon, .mermaid-syntax-error').forEach(el => el.remove());
+                        } catch (e) {}
                         renderFallback();
+                    }).finally(() => {
+                        hideLoading();
                     });
                 } catch (e) {
                     console.error('Mermaid init error:', e);
+                    try {
+                        document.querySelectorAll('[id^="dmermaid"], [id^="mermaid-svg"], .error-icon, .mermaid-syntax-error').forEach(el => el.remove());
+                    } catch (e2) {}
                     renderFallback();
                 }
             } else {
@@ -2070,6 +2103,9 @@ export class DiagramPanel {
         }
 
         function renderFallback() {
+            try {
+                document.querySelectorAll('[id^="dmermaid"], [id^="mermaid-svg"], .error-icon, .mermaid-syntax-error').forEach(el => el.remove());
+            } catch (e) {}
             hideLoading();
             const target = document.getElementById('mermaid-target');
             let cardsHtml = '';

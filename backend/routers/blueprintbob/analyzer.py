@@ -35,7 +35,10 @@ IGNORED_EXTS: Set[str] = {
 
 def normalize_path(path: str) -> str:
     """Normalize file path to use forward slashes and strip leading/trailing slashes."""
-    return path.replace('\\', '/').strip().lstrip('/')
+    norm = path.replace('\\', '/').strip().strip('/')
+    if norm.startswith('./'):
+        norm = norm[2:]
+    return norm.lstrip('/')
 
 
 def is_ignored(path: str) -> bool:

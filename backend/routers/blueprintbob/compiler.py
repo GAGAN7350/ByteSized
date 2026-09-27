@@ -18,8 +18,12 @@ def escape_label(label: str) -> str:
     """Escape label strings to prevent Mermaid parse errors."""
     if not label:
         return ''
-    clean = label.replace('"', "'")
-    clean = clean.replace('\r\n', '<br/>').replace('\n', '<br/>')
+    clean = label.replace('\r\n', '<br/>').replace('\n', '<br/>')
+    clean = clean.replace('"', "'")
+    clean = clean.replace('[', '#91;').replace(']', '#93;')
+    clean = clean.replace('(', '#40;').replace(')', '#41;')
+    clean = clean.replace('{', '#123;').replace('}', '#125;')
+    clean = clean.replace('|', '#124;')
     return clean
 
 
@@ -106,7 +110,8 @@ def wrap_label(label: str, max_chars: int = 22) -> str:
 
 
 def format_node_shape(node_id: str, label: str, shape: str = 'box') -> str:
-    escaped_label = wrap_label(escape_label(label))
+    wrapped = wrap_label(label)
+    escaped_label = escape_label(wrapped)
     s = (shape or 'box').lower()
     if s == 'database':
         return f'{node_id}[("{escaped_label}")]'
@@ -120,6 +125,19 @@ def format_node_shape(node_id: str, label: str, shape: str = 'box') -> str:
         return f'{node_id}{{{{"{escaped_label}"}}}}'
     else:
         return f'{node_id}["{escaped_label}"]'
+
+
+def escape_edge_label(label: str) -> str:
+    """Escape edge label strings to prevent Mermaid parse errors."""
+    if not label:
+        return ''
+    clean = label.strip().strip('"').strip("'")
+    clean = clean.replace('|', '-')
+    clean = clean.replace('"', "'")
+    clean = clean.replace('[', '#91;').replace(']', '#93;')
+    clean = clean.replace('(', '#40;').replace(')', '#41;')
+    clean = clean.replace('\r\n', ' ').replace('\n', ' ')
+    return clean
 
 
 def compile_mermaid(graph: DiagramGraph) -> str:
@@ -167,13 +185,13 @@ def compile_mermaid(graph: DiagramGraph) -> str:
             continue
 
         has_label = bool(edge.label and edge.label.strip())
-        elabel = escape_label(edge.label) if has_label else ''
+        elabel = escape_edge_label(edge.label) if has_label else ''
 
         style = (edge.style or 'solid').lower()
         if style == 'dashed':
-            edge_str = f'{source_id} -.->|"{elabel}"| {target_id}' if has_label else f'{source_id} -.-> {target_id}'
+            edge_str = f'{source_id} -.->|{elabel}| {target_id}' if elabel else f'{source_id} -.-> {target_id}'
         else:
-            edge_str = f'{source_id} -->|"{elabel}"| {target_id}' if has_label else f'{source_id} --> {target_id}'
+            edge_str = f'{source_id} -->|{elabel}| {target_id}' if elabel else f'{source_id} --> {target_id}'
 
         lines.append(f'    {edge_str}')
 

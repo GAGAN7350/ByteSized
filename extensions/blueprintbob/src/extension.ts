@@ -4,6 +4,7 @@ import { scanWorkspace } from './workspaceScanner';
 import { DiagramPanel, DiagramGraphData, KeyInfo } from './diagramPanel';
 
 let statusBarItem: vscode.StatusBarItem;
+let isGenerating = false;
 
 interface BlueprintBobResponse {
     status: string;
@@ -28,6 +29,11 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(statusBarItem);
 
     const visualizeHandler = async () => {
+        if (isGenerating) {
+            console.log('[BlueprintBob] Visualization already in progress, skipping duplicate invocation.');
+            return;
+        }
+        isGenerating = true;
         try {
             await vscode.window.withProgress(
                 {
@@ -40,6 +46,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     const scanned = await scanWorkspace();
 
                     if (!scanned.fileTree || scanned.fileTree.length === 0) {
+                        DiagramPanel.currentPanel?.hideLoading();
                         vscode.window.showWarningMessage("BlueprintBob: No workspace files found to visualize.");
                         return;
                     }
@@ -74,6 +81,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     const response = await postJson<BlueprintBobResponse>(endpoint, payload);
 
                     if (response.status !== 'success') {
+                        DiagramPanel.currentPanel?.hideLoading();
                         throw new Error(`Backend returned status: ${response.status}`);
                     }
 
@@ -149,10 +157,13 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
             );
         } catch (error: any) {
+            DiagramPanel.currentPanel?.hideLoading();
             console.error('[BlueprintBob] Visualization failed:', error);
             vscode.window.showErrorMessage(
                 `BlueprintBob failed: ${error?.message || error}. Is the backend running on http://localhost:8000?`
             );
+        } finally {
+            isGenerating = false;
         }
     };
 

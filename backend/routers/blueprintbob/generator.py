@@ -55,7 +55,7 @@ def build_byok_prompt(request: BlueprintBobRequest) -> str:
     granularity = (request.granularity or "detailed").lower().strip()
     if granularity == "detailed":
         req_text = """REQUIREMENTS FOR DETAILED ARCHITECTURE MAP:
-1. Produce a detailed, comprehensive architecture diagram with 22 to 36 specific component and file nodes.
+1. Produce a detailed, comprehensive architecture diagram with 20 to 28 key architectural component and file nodes.
 2. Break down the system into specific implementation files rather than single generic boxes:
    - Client extensions: show individual commands (e.g. optimizeRTL.ts, connectWorkspace.ts), views (diagramPanel.ts), and scanners (workspaceScanner.ts).
    - Backend services: show individual routers, engines, analyzers, models, and compilers (e.g. main.py, router.py, engine.py, compiler.py, ast_engine.py).
@@ -63,14 +63,16 @@ def build_byok_prompt(request: BlueprintBobRequest) -> str:
 3. Assign precise file paths to all repository nodes in the `path` field.
 4. Connect fine-grained directed edges with descriptive verbs (e.g., 'mounts', 'imports', 'calls REST API', 'parses AST', 'validates schema').
 5. Assign appropriate node types: "backend", "frontend", "extension", "router", "database", "shared", "test", "config".
-6. Assign node shapes: "box", "hexagon" (for routers), "database" (for models/db), "document" (for configs/tests), "circle" (for external actors)."""
+6. Assign node shapes: "box", "hexagon" (for routers), "database" (for models/db), "document" (for configs/tests), "circle" (for external actors).
+7. Keep node descriptions ultra-concise (3 to 6 words). Return concise JSON."""
     else:
         req_text = """REQUIREMENTS FOR SYSTEM OVERVIEW MAP:
 1. Produce a clean, macro-level 10 to 14 node system overview representing high-level subsystem blocks and architecture layers.
 2. Aggregate individual files into macro architectural components (e.g. Core API Service, Frontend UI Layer, Shared Libraries, Database/Models, Test Harness).
 3. Assign appropriate node types: "backend", "frontend", "extension", "router", "database", "shared", "test", "config".
 4. Assign node shapes: "box", "hexagon" (for routers), "database" (for models/db), "document" (for configs/tests), "circle" (for external actors).
-5. Establish clean, high-level directed dependencies with clear relationship labels (e.g., 'mounts', 'imports', 'calls API')."""
+5. Establish clean, high-level directed dependencies with clear relationship labels (e.g., 'mounts', 'imports', 'calls API').
+6. Keep node descriptions ultra-concise (3 to 6 words). Return concise JSON."""
 
     return f"""You are BlueprintBob, an expert software architecture engine modeled after clean GitDiagram visual style.
 Analyze the following workspace components and produce a clean, structured architecture graph and concise explanation.
@@ -92,18 +94,18 @@ GITDIAGRAM CLEAN ARCHITECTURAL STYLE GUIDELINES:
 - Identify the Entrypoint UI / Editor (e.g. "VS Code / Bob editor", "Web App UI") invoking commands or initiating actions.
 - Group components into clean, logical subsystem subgraphs (e.g. "Extension Client", "Backend Core API", "Analysis Engine", "Data Storage").
 - For node labels, include clean file references in brackets where appropriate (e.g. `Extension commands [extension.ts]`, `WebSocket endpoint [main.py]`, `Compiler [compiler.py]`).
-- Limit output size: Keep node descriptions under 10 words and the markdown explanation under 120 words so the entire JSON streams in 2-3 seconds.
+- Limit output size: Keep node descriptions ultra-concise (3 to 6 words) and the architectural explanation under 30 words so the entire JSON streams in 3-4 seconds.
 
 {req_text}
 7. Return ONLY a valid JSON object matching this schema:
 {{
-  "explanation": "A concise 1-2 paragraph markdown architectural overview detailing layers, data flow, and subsystems (under 120 words).",
+  "explanation": "A concise 1-2 sentence architectural summary (under 30 words).",
   "graph": {{
     "groups": [
       {{"id": "group_id", "label": "Group Label", "description": "Group Description"}}
     ],
     "nodes": [
-      {{"id": "node_id", "label": "Node Label [filename]", "type": "backend|frontend|...", "description": "Brief description", "path": "path/to/file", "shape": "box|circle|hexagon|database|...", "group_id": "group_id"}}
+      {{"id": "node_id", "label": "Node Label [filename]", "type": "backend|frontend|...", "description": "Concise 3-6 word summary (e.g., 'FastAPI entrypoint and middleware', 'RTL AST optimizer router')", "path": "path/to/file", "shape": "box|circle|hexagon|database|...", "group_id": "group_id"}}
     ],
     "edges": [
       {{"source": "source_node_id", "target": "target_node_id", "label": "relationship", "style": "solid|dashed"}}
@@ -128,12 +130,15 @@ BLACKLIST_MODEL_KEYWORDS = [
 ]
 
 PREFERRED_TEXT_MODELS = [
-    "gemini-1.5-flash",
     "gemini-2.0-flash",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash-latest",
+    "gemini-2.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.8-flash",
     "gemini-2.0-flash-lite",
-    "gemini-1.5-pro-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro",
     "gemini-pro",
 ]
 
@@ -263,7 +268,11 @@ def _parse_gemini_http_error(exc: urllib.error.HTTPError) -> str:
         return err_body or str(exc)
 
 
-def _call_gemini(api_key: str, prompt: str) -> Tuple[Optional[DiagramGraph], Optional[str], Optional[str]]:
+def _call_gemini(
+    api_key: str,
+    prompt: str,
+    granularity: str = "detailed",
+) -> Tuple[Optional[DiagramGraph], Optional[str], Optional[str]]:
     """Helper to query Google Gemini generateContent endpoint with retries and JSON fallback."""
     candidate_models, list_err = _get_available_gemini_models(api_key)
     if list_err:
@@ -279,7 +288,9 @@ def _call_gemini(api_key: str, prompt: str) -> Tuple[Optional[DiagramGraph], Opt
     print(f"[BlueprintBob] Available Gemini models: {candidate_models}", flush=True)
 
     start_time = time.time()
-    MAX_TOTAL_TIME = 15.0
+    is_detailed = (granularity or "detailed").lower().strip() == "detailed"
+    model_timeout = 25 if is_detailed else 15
+    MAX_TOTAL_TIME = 30.0 if is_detailed else 18.0
 
     last_error = list_err
     for model in candidate_models:
@@ -313,8 +324,8 @@ def _call_gemini(api_key: str, prompt: str) -> Tuple[Optional[DiagramGraph], Opt
                     headers={"Content-Type": "application/json"}
                 )
 
-                # Set timeout to 12 seconds per model request
-                with urllib.request.urlopen(req, timeout=12) as resp:
+                # Set timeout per model request based on granularity (25s for detailed, 15s for overview)
+                with urllib.request.urlopen(req, timeout=model_timeout) as resp:
                     resp_data = json.loads(resp.read().decode('utf-8'))
                     candidates = resp_data.get('candidates', [])
                     if not candidates:
@@ -478,9 +489,10 @@ def call_llm_byok(
         return None, None, "offline_ast", None
 
     prompt = build_byok_prompt(request)
+    granularity = (request.granularity or "detailed").lower().strip()
 
     if provider == "gemini":
-        graph, explanation, err = _call_gemini(api_key, prompt)
+        graph, explanation, err = _call_gemini(api_key, prompt, granularity=granularity)
         if graph and explanation:
             return graph, explanation, "byok_gemini", None
         return None, None, "offline_ast", err or "Gemini API failed to generate graph"

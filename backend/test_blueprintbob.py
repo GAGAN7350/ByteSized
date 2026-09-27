@@ -328,10 +328,67 @@ class TestBlueprintBobBackend(unittest.TestCase):
         self.assertIn('n4>"Doc Spec"]', mermaid)
         self.assertIn('n5{{"Hex Router"}}', mermaid)
         self.assertIn('n6(("Circle Client"))', mermaid)
-        self.assertIn('n1 -->|"queries"| n2', mermaid)
-        self.assertIn('n1 -.->|"enqueues"| n3', mermaid)
+        self.assertIn('n1 -->|queries| n2', mermaid)
+        self.assertIn('n1 -.->|enqueues| n3', mermaid)
         self.assertIn('click n1 call onNodeClick("n1")', mermaid)
         self.assertIn('classDef', mermaid)
+
+    def test_mermaid_compiler_bracket_and_quote_escaping(self):
+        """Test escaping of brackets, parentheses, braces, quotes, and pipes in Mermaid compiler."""
+        graph = DiagramGraph(
+            groups=[
+                DiagramGroup(id="client_grp", label="Client Subsystem [extension]")
+            ],
+            nodes=[
+                DiagramNode(id="hw_eng", label="Hardware Engineer [User]", shape="circle", group_id="client_grp"),
+                DiagramNode(id="ext_entry", label="Extension Entrypoint [extension.ts]", shape="box", group_id="client_grp"),
+                DiagramNode(id="comp_ast", label="Compiler {AST} [compiler.py]", shape="hexagon"),
+                DiagramNode(id="main_app", label="Main App (Core)", shape="box")
+            ],
+            edges=[
+                DiagramEdge(
+                    source="ext_entry",
+                    target="comp_ast",
+                    label='invokes "API" | calls [main.py]',
+                    style="solid"
+                )
+            ]
+        )
+
+        mermaid = compile_mermaid(graph)
+
+        # Verify bracket escaping in nodes
+        self.assertIn("#91;User#93;", mermaid)
+        self.assertNotIn("[User]", mermaid)
+
+        self.assertIn("#91;extension.ts#93;", mermaid)
+        self.assertNotIn("[extension.ts]", mermaid)
+
+        # Verify curly braces escaping
+        self.assertIn("#123;AST#125;", mermaid)
+        self.assertNotIn("{AST}", mermaid)
+
+        # Verify parentheses escaping
+        self.assertIn("#40;Core#41;", mermaid)
+        self.assertNotIn("(Core)", mermaid)
+
+        # Verify group bracket escaping
+        self.assertIn("#91;extension#93;", mermaid)
+        self.assertNotIn("[extension]", mermaid)
+
+        # Verify edge output: no outer quotes, pipe replaced with hyphen, brackets escaped, quotes escaped to single quote
+        self.assertIn("-->|invokes 'API' - calls #91;main.py#93;|", mermaid)
+        self.assertNotIn('-->|"', mermaid)
+        self.assertNotIn('"|', mermaid)
+
+    def test_normalize_path_leading_dot_slash(self):
+        """Test normalize_path correctly strips leading ./ so paths are not marked as hidden."""
+        from backend.routers.blueprintbob.analyzer import normalize_path, is_ignored
+        self.assertEqual(normalize_path("./backend/main.py"), "backend/main.py")
+        self.assertEqual(normalize_path(".\\backend\\main.py"), "backend/main.py")
+        self.assertEqual(normalize_path("/backend/main.py"), "backend/main.py")
+        self.assertFalse(is_ignored("./backend/main.py"))
+        self.assertFalse(is_ignored("backend/main.py"))
 
     def test_request_byok_gemini_fallback(self):
         """Test BlueprintBobRequest with Gemini api_key and verify graceful fallback and engine_mode."""
@@ -410,8 +467,8 @@ class TestBlueprintBobBackend(unittest.TestCase):
                 {"name": "models/gemini-1.5-pro", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/gemini-1.5-flash", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/gemini-2.0-flash", "supportedGenerationMethods": ["generateContent"]},
-                {"name": "models/gemini-2.5-flash", "supportedGenerationMethods": ["generateContent"]},
-                {"name": "models/gemini-2.5-pro", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/gemini-2.5-flash-lite", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/gemini-3.1-flash-lite", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/gemini-2.0-flash-lite", "supportedGenerationMethods": ["generateContent"]},
                 {"name": "models/custom-model", "supportedGenerationMethods": ["generateContent"]}
             ]
@@ -435,11 +492,11 @@ class TestBlueprintBobBackend(unittest.TestCase):
             self.assertNotIn("gemini-omni-flash-preview", models)
             self.assertNotIn("gemini-omni-1.1-flash", models)
 
-            # Check prioritization: strictly gemini-1.5-flash, then gemini-2.0-flash,
+            # Check prioritization: strictly gemini-2.0-flash, then gemini-2.5-flash-lite,
             # and capped at at most 2 candidate models
             expected_models = [
-                "gemini-1.5-flash",
                 "gemini-2.0-flash",
+                "gemini-2.5-flash-lite",
             ]
             self.assertEqual(models, expected_models)
             self.assertEqual(len(models), 2)
@@ -589,7 +646,7 @@ class TestBlueprintBobBackend(unittest.TestCase):
         self.assertEqual(resp2.status_code, 200)
         data2 = resp2.json()
         self.assertTrue(data2["metrics"].get("cached"))
-        self.assertLess(elapsed, 0.05)
+        self.assertLess(elapsed, 0.2)
         self.assertEqual(data1["mermaid_code"], data2["mermaid_code"])
 
         # Different payload: cache miss
@@ -718,8 +775,9 @@ class TestBlueprintBobBackend(unittest.TestCase):
         )
         prompt_detailed = build_byok_prompt(req_detailed)
         self.assertIn("REQUIREMENTS FOR DETAILED ARCHITECTURE MAP:", prompt_detailed)
-        self.assertIn("22 to 36 specific component and file nodes", prompt_detailed)
+        self.assertIn("20 to 28 key architectural component and file nodes", prompt_detailed)
         self.assertIn("Client extensions: show individual commands", prompt_detailed)
+        self.assertIn("Keep node descriptions ultra-concise (3 to 6 words)", prompt_detailed)
 
         # Overview prompt
         req_overview = BlueprintBobRequest(

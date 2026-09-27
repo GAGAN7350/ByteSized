@@ -7,7 +7,7 @@
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
-    "moduleResolution": "node10",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true
   },

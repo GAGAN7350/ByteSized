@@ -258,6 +258,106 @@ npm run compile
 
 ---
 
+## Using the Extensions
+
+The extensions are currently run from an Extension Development Host. Start the
+backend first, then press **F5** from either extension folder to open a host
+window with the extension loaded.
+
+### SiliconBob: Analyze and optimize code
+
+1. Make sure the backend is running at `http://localhost:8000`.
+2. Open a supported source file in the Extension Development Host.
+3. Run **SiliconBob: Analyze & Optimize Code (All Languages)** from the
+   Command Palette (`Ctrl+Shift+P`) or the editor context menu.
+4. SiliconBob sends the current file to `/api/optimize-code`.
+5. Detected issues appear as diagnostics in the editor and the optimized result
+   opens in a side-by-side diff.
+6. Choose **Apply to Current File** to replace the current file with the
+   optimized result, or **Open in New Tab** to keep the result separate.
+
+Supported language IDs are:
+`verilog`, `systemverilog`, `python`, `c`, `cpp`, `javascript`,
+`typescript`, `java`, `go`, and `rust`.
+
+### SiliconBob: Apply or preview an individual fix
+
+When an issue has a safe deterministic replacement, hover over its diagnostic
+and select the lightbulb action:
+
+- **SiliconBob: Apply Fix** replaces only the affected line.
+- **SiliconBob: Preview Fix** opens a diff containing only that proposed change.
+
+Some findings, such as ignored Go errors, Rust `unwrap()` calls, hardcoded
+credentials, and TODO markers, are advisory only and do not provide an
+automatic fix.
+
+### SiliconBob: Lint on save
+
+Lint-on-save is enabled by default. Saving a supported source file silently
+refreshes its SiliconBob diagnostics without opening a diff or notification.
+To disable it, open VS Code settings and turn off:
+
+```text
+SiliconBob › Lint On Save
+```
+
+The setting can also be placed in `.vscode/settings.json`:
+
+```json
+{
+  "siliconbob.lintOnSave": true,
+  "siliconbob.backendUrl": "http://localhost:8000"
+}
+```
+
+If the backend is running on another host or port, change
+`siliconbob.backendUrl`. Reload the Extension Development Host after changing
+extension settings if the status bar still shows the old URL.
+
+### SiliconBob: Collaboration rooms
+
+Run **SiliconBob: Join Multi-Engineer Room**, enter a shared room ID such as
+`soc-core-alu`, and wait for the status bar to show the room and active-user
+count. The extension connects to:
+
+```text
+ws://localhost:8000/ws/<room-id>
+```
+
+Incoming `CODE_UPDATE` messages are opened as a read-only preview beside the
+current editor. Run **SiliconBob: Leave Collaboration Room** to close the
+connection. Collaboration state is held by the backend process and is intended
+for development/demo use; use a shared Redis-backed deployment for a
+multi-process production setup.
+
+### BlueprintBob: Visualize a workspace
+
+1. Open the repository you want to inspect as the active workspace.
+2. Run **BlueprintBob: Visualize Workspace Architecture**.
+3. Wait for the architecture canvas to load.
+4. Use **Overview** for a high-level map or **Deep Map** for individual files.
+5. Use **Offline** for deterministic local analysis.
+6. Use **AI Mode** only when an API key is configured and you want an
+   AI-generated explanation.
+
+Offline mode does not require an API key. AI mode uses the backend's configured
+provider and key; do not place private credentials in source files or commit
+them to the repository.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `Backend Offline` in the status bar | Start `uvicorn backend.main:app --reload --port 8000` from the repository root and check `http://localhost:8000/health`. |
+| No SiliconBob diagnostics | Confirm the file uses one of the supported language IDs and run the command manually once. |
+| Lightbulb does not appear | Only deterministic rules expose quick fixes; advisory findings intentionally do not. |
+| Collaboration cannot connect | Check the backend URL, room ID, and that WebSocket connections are allowed by the proxy. |
+| BlueprintBob AI mode fails | Use Offline mode or configure `GEMINI_API_KEY` in the backend environment. |
+| Changes are not visible after editing extension code | Stop the Extension Development Host, run `npm run compile`, and press `F5` again. |
+
+---
+
 ### Step 7 — Run the tests
 
 ```bash

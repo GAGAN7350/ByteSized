@@ -26,7 +26,8 @@
     "onLanguage:systemverilog",
     "onCommand:siliconbob.optimizeCode",
     "onCommand:siliconbob.optimizeRTL",
-    "onCommand:siliconbob.connectWorkspace"
+    "onCommand:siliconbob.connectWorkspace",
+    "onCommand:siliconbob.previewFix"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -44,6 +45,16 @@
       {
         "command": "siliconbob.connectWorkspace",
         "title": "Join Multi-Engineer Room",
+        "category": "SiliconBob"
+      },
+      {
+        "command": "siliconbob.leaveWorkspace",
+        "title": "Leave Collaboration Room",
+        "category": "SiliconBob"
+      },
+      {
+        "command": "siliconbob.previewFix",
+        "title": "SiliconBob: Preview Fix",
         "category": "SiliconBob"
       }
     ],
@@ -68,6 +79,11 @@
           "type": "string",
           "default": "http://localhost:8000",
           "description": "URL of the SiliconBob hardware optimization backend server"
+        },
+        "siliconbob.lintOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically re-run SiliconBob analysis when a supported file is saved."
         }
       }
     }

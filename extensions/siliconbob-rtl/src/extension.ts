@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { createStatusBar } from './shared';
 import { registerOptimizeRTL } from './commands/optimizeRTL';
 import { registerConnectWorkspace } from './commands/connectWorkspace';
+import { registerCodeActions } from './commands/codeActions';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 let statusBarItem: vscode.StatusBarItem;
@@ -18,6 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     registerOptimizeRTL(context, diagnosticCollection, statusBarItem);
     registerConnectWorkspace(context, statusBarItem);
+    registerCodeActions(context);
 }
 
 export function deactivate() {
